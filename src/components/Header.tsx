@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { openUrl } from '@tauri-apps/plugin-opener'
 import { useStore } from '../store'
 import { setUpdateModalOpen, useReleaseUpdates } from '../hooks/useReleaseUpdates'
 import { useTooltip } from '../hooks/useTooltip'
@@ -183,22 +184,22 @@ export default function Header() {
                 <>
                   <span className="min-w-0 truncate text-[17px] font-bold tracking-tight text-gray-800 dark:text-gray-100 sm:hidden" title={favoriteCollectionTitle}>{favoriteCollectionTitle}</span>
                   <a
-                    href="https://github.com/CookSleep/gpt_image_playground"
+                    href="https://panel.weekendapi.site"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="hidden text-lg font-bold tracking-tight text-gray-800 transition-colors hover:text-gray-600 dark:text-gray-100 dark:hover:text-gray-300 sm:inline"
                   >
-                    GPT Image Playground
+                    威肯绘图
                   </a>
                 </>
               ) : (
                 <a
-                  href="https://github.com/CookSleep/gpt_image_playground"
+                  href="https://panel.weekendapi.site"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[17px] sm:text-lg font-bold tracking-tight text-gray-800 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
-                  GPT Image Playground
+                  威肯绘图
                 </a>
               )}
               {/* 透明伪元素把点击区域扩大到 32px 以上，外观不变 */}
@@ -340,6 +341,14 @@ export default function Header() {
                 操作指南
               </ViewportTooltip>
             </div>
+            <button
+              type="button"
+              onClick={() => void openUrl('https://panel.weekendapi.site')}
+              className="hidden sm:inline-flex items-center rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-gray-950 shadow-sm transition hover:bg-amber-400"
+              title="打开威肯API后台充值或获取密钥"
+            >
+              充值 / 获取密钥
+            </button>
             <div
               className="relative"
               {...settingsTooltip.handlers}

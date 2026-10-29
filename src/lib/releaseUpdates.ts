@@ -1,4 +1,4 @@
-export const RELEASE_REPO = 'CookSleep/gpt_image_playground'
+export const RELEASE_REPO = 'Wenzaiyi/gpt_image_playground'
 export const RELEASES_PAGE_URL = `https://github.com/${RELEASE_REPO}/releases`
 export const LICENSE_URL = `https://github.com/${RELEASE_REPO}/blob/main/LICENSE`
 export const RELEASES_PER_PAGE = 10

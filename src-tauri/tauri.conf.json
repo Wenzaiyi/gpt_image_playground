@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "GPT Image Playground",
+  "productName": "威肯绘图",
   "version": "../package.json",
-  "identifier": "com.cooksleep.gpt-image-playground",
+  "identifier": "site.weekendapi.draw",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",
@@ -14,7 +14,7 @@
       {
         "label": "main",
         "create": false,
-        "title": "GPT Image Playground",
+        "title": "威肯绘图",
         "width": 1280,
         "height": 820,
         "minWidth": 800,
@@ -47,7 +47,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYwODREMkY2Nzg0MzVBQjEKUldTeFdrTjQ5dEtFWU1sUzZwNDBSbEFjR3poRktsbjVnM1VPNUJQajh4S1N1aEplL1ZiTXBqSFYK",
-      "endpoints": ["https://github.com/CookSleep/gpt_image_playground/releases/latest/download/latest.json"],
+      "endpoints": ["https://github.com/Wenzaiyi/gpt_image_playground/releases/latest/download/latest.json"],
       "requireSignedVersion": true,
       "windows": {
         "installMode": "passive"
@@ -55,7 +55,7 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["gpt-image-playground"]
+        "schemes": ["weikendraw"]
       }
     }
   },
@@ -63,7 +63,7 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "resources": {
-      "../skills/gpt-image-playground/": "skills/gpt-image-playground/"
+      "../skills/weikendraw/": "skills/weikendraw/"
     },
     "targets": ["nsis"],
     "icon": [
