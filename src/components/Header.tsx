@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { openUrl } from '@tauri-apps/plugin-opener'
 import { useStore } from '../store'
 import { setUpdateModalOpen, useReleaseUpdates } from '../hooks/useReleaseUpdates'
 import { useTooltip } from '../hooks/useTooltip'
 import { detectOs } from '../lib/announcements'
 import { getPageScroller, getPageScrollTop } from '../lib/pageScroll'
-import { isTauri } from '../lib/platform'
+import { isTauri, openExternal } from '../lib/platform'
 import { RELEASES_PAGE_URL, shouldShowUpdate } from '../lib/releaseUpdates'
 import { dismissAllTooltips } from '../lib/tooltipDismiss'
 import ViewportTooltip from './ViewportTooltip'
@@ -343,7 +342,7 @@ export default function Header() {
             </div>
             <button
               type="button"
-              onClick={() => void openUrl('https://panel.weekendapi.site')}
+              onClick={() => void openExternal('https://panel.weekendapi.site')}
               className="hidden sm:inline-flex items-center rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-gray-950 shadow-sm transition hover:bg-amber-400"
               title="打开威肯API后台充值或获取密钥"
             >
