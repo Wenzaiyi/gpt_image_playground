@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "威肯绘图",
+  "productName": "WeikenDraw",
   "version": "../package.json",
   "identifier": "site.weekendapi.draw",
   "build": {
