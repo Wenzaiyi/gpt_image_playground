@@ -28,3 +28,20 @@ npm run tauri:build
 ## 余额查询说明
 
 已检查威肯API公开可访问的 OpenAI 兼容入口；当前环境无法确认 sub2api 的余额/用量接口契约（未提供可验证的 `/v1/usage` 响应或 dashboard billing API），因此未猜测并实现余额展示，保留「充值 / 获取密钥」入口。
+
+
+# 1.0.1 改动
+
+- 合并为单一“威肯API”预置配置，默认模型为 gpt-image-2，并支持首页切换三个预置模型。
+- API 配置中新增“获取模型”，调用 GET /models 合并返回模型 ID，并显示中文错误提示。
+- 保留 Agent 与高级功能，批量提交开关默认关闭。
+- productName 改为 WeikenDraw，窗口标题保持“威肯绘图”，安装包文件名使用英文产品名。
+- 修复 Windows 发布工作流的 updater JSON 上传配置，确保生成 latest.json。
+- 版本号升级至 1.0.1。
+
+
+## 1.0.1 首页与发布修订
+
+- Windows productName 恢复为“威肯绘图”，发布工作流通过 `assetNamePattern` 生成 `WeikenDraw_[version]_[arch][setup][ext]` 英文资产名。
+- 首页默认收起高级参数，突出提示词、参考图和生成按钮；未配置 API Key 时提供设置与充值入口，Agent 顶部入口保留。
+- 批量提交设置默认关闭（`showBatchPrompt` 与 `batchPromptEnabled` 默认均为 `false`）。

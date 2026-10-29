@@ -59,7 +59,7 @@ describe('parseReleasePage', () => {
       url: 'https://github.com/CookSleep/gpt_image_playground/releases/tag/v0.8.0',
     })
     // 非 https 的链接替换为仓库的 Release 页面
-    expect(result.releases[1].url).toBe('https://github.com/CookSleep/gpt_image_playground/releases/tag/v0.7.17')
+    expect(result.releases[1].url).toBe('https://github.com/Wenzaiyi/gpt_image_playground/releases/tag/v0.7.17')
   })
 
   it('不是数组时抛出错误', () => {

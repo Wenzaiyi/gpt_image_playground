@@ -193,6 +193,7 @@ export default function SettingsModal() {
   const [timeoutInput, setTimeoutInput] = useState(String(getActiveApiProfile(settings).timeout))
   const [agentMaxToolRoundsInput, setAgentMaxToolRoundsInput] = useState(String(settings.agentMaxToolRounds))
   const [showApiKey, setShowApiKey] = useState(false)
+  const [fetchingModels, setFetchingModels] = useState(false)
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [profileMenuMaxHeight, setProfileMenuMaxHeight] = useState(DEFAULT_DROPDOWN_MAX_HEIGHT)
   const [showCustomProviderImport, setShowCustomProviderImport] = useState(false)
@@ -1562,9 +1563,39 @@ export default function SettingsModal() {
 
               {/* 7. 模型 ID（紧跟接口选择） */}
               <label className="block">
-                <span className="mb-1.5 block text-sm text-gray-600 dark:text-gray-300">
-                  模型 ID
-                </span>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="block text-sm text-gray-600 dark:text-gray-300">模型 ID</span>
+                  {activeProfile.provider === 'openai' && activeProfile.apiKey.trim() && (
+                    <button
+                      type="button"
+                      disabled={fetchingModels}
+                      onClick={async () => {
+                        setFetchingModels(true)
+                        try {
+                          const url = `${activeProfile.baseUrl.replace(/\/$/, '')}/models`
+                          const response = await fetch(url, { headers: { Authorization: `Bearer ${activeProfile.apiKey.trim()}` } })
+                          const payload: unknown = await response.json().catch(() => null)
+                          if (!response.ok) throw new Error(`接口返回 ${response.status}`)
+                          const models = payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)
+                            ? (payload as { data: Array<{ id?: unknown }> }).data.map((item) => typeof item.id === 'string' ? item.id.trim() : '').filter(Boolean)
+                            : []
+                          if (!models.length) throw new Error('接口没有返回可用模型')
+                          const current = activeProfile.model.split(',').map((item) => item.trim()).filter(Boolean)
+                          const merged = [...new Set([...current, ...models])]
+                          updateActiveProfile({ model: merged.join(',') }, true)
+                          showToast(`已获取并合并 ${models.length} 个模型`, 'success')
+                        } catch (err) {
+                          showToast(`获取模型失败：${err instanceof Error ? err.message : '请检查 API URL 和 Key'}`, 'error')
+                        } finally {
+                          setFetchingModels(false)
+                        }
+                      }}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-500 disabled:opacity-50 dark:text-blue-400"
+                    >
+                      {fetchingModels ? '获取中…' : '获取模型'}
+                    </button>
+                  )}
+                </div>
                 <input
                   value={activeProfile.model}
                   onChange={(e) => updateActiveProfile({ model: e.target.value })}

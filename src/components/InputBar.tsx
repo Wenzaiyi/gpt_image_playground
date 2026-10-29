@@ -20,7 +20,7 @@ import { useHintTooltip } from '../hooks/useHintTooltip'
 import { useVisibleTasks } from '../hooks/usePrivacyMode'
 import { downloadImageEntriesAsZip, downloadImageIds, formatExportFileTime, getDownloadErrorMessage, getTaskOutputImageZipEntries, withSaveLocation } from '../lib/downloadImages'
 import { pickSaveDir } from '../lib/saveFile'
-import { isTauri } from '../lib/platform'
+import { isTauri, openExternal } from '../lib/platform'
 import SizePickerModal from './SizePickerModal'
 import { CloseIcon, CollapseIcon, ExpandIcon, LinkIcon, SketchIcon } from './icons'
 import { CommentBadge } from './CommentMarks'
@@ -348,6 +348,7 @@ export default function InputBar() {
   const [attachHover, setAttachHover] = useState(false)
   const [imageHintId, setImageHintId] = useState<string | null>(null)
   const [mobileCollapsed, setMobileCollapsed] = useState(false)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
   const [showSizePicker, setShowSizePicker] = useState(false)
   const [showUploadMenu, setShowUploadMenu] = useState(false)
   const [showAddImageUrls, setShowAddImageUrls] = useState(false)
@@ -1816,6 +1817,14 @@ export default function InputBar() {
             )
           )}
 
+          {!hasSubmitApiConfig && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+              <span className="flex-1">请先填写威肯API Key 才能生成图片</span>
+              <button type="button" onClick={() => setShowSettings(true)} className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-gray-950 hover:bg-amber-400">去设置填写 Key</button>
+              <button type="button" onClick={() => void openExternal('https://panel.weekendapi.site')} className="text-xs font-semibold underline underline-offset-2">充值 / 获取密钥</button>
+            </div>
+          )}
+
           {/* 输入框 */}
           <div className={`relative grid sm:[contain:inline-size]${promptExpanded ? ' min-h-0 flex-1' : ''}`}>
             {showAtImageMenu && (
@@ -1955,7 +1964,10 @@ export default function InputBar() {
           <div className="mt-3">
             {/* 桌面端布局 */}
             <div className="hidden sm:flex items-center justify-between gap-3">
-              {renderParams()}
+              <details open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)} className="min-w-0 flex-1">
+                <summary className="mb-2 cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">高级设置（模型、尺寸、数量及更多参数）</summary>
+                {advancedOpen && renderParams()}
+              </details>
 
               <div className="flex gap-2 flex-shrink-0">
                 {renderAddImageButton(false)}
@@ -1995,7 +2007,10 @@ export default function InputBar() {
             <div className="sm:hidden flex flex-col gap-2">
               <div className={`collapse-section${mobileCollapsed ? ' collapsed' : ''}`}>
                 <div className="collapse-inner">
-                  {renderParams()}
+                  <details open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
+                    <summary className="mb-2 cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">高级设置（模型、尺寸、数量及更多参数）</summary>
+                    {advancedOpen && renderParams()}
+                  </details>
                   <div className="h-2" />
                 </div>
               </div>
