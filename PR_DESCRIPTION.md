@@ -24,3 +24,7 @@ npm run tauri:build
 ```
 
 本地更新包签名时需通过环境变量提供 `TAURI_SIGNING_PRIVATE_KEY` 与 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，不要写入文件或提交。
+
+## 余额查询说明
+
+已检查威肯API公开可访问的 OpenAI 兼容入口；当前环境无法确认 sub2api 的余额/用量接口契约（未提供可验证的 `/v1/usage` 响应或 dashboard billing API），因此未猜测并实现余额展示，保留「充值 / 获取密钥」入口。
