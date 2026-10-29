@@ -103,7 +103,7 @@ export default function SkillSettingsSection() {
       <div className="space-y-1">
         <h4 className={SECTION_TITLE}>Skill</h4>
         <p data-selectable-text className={ROW_DESC}>
-          Skill 为 AI 工具提供 GPT Image Playground CLI 的使用说明，包括何时调用、如何生图与修改设置。Claude Code 读取「~\.claude\skills」，Codex 读取「~\.agents\skills」，Cursor、VS Code 与 OpenCode 两处都会读取，安装其中一处即可。
+          Skill 为 AI 工具提供 WeikenDraw CLI 的使用说明，包括何时调用、如何生图与修改设置。Claude Code 读取「~\.claude\skills」，Codex 读取「~\.agents\skills」，Cursor、VS Code 与 OpenCode 两处都会读取，安装其中一处即可。
         </p>
         {error && <p data-selectable-text className="text-xs text-red-500 dark:text-red-400">{error}</p>}
       </div>

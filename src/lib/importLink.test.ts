@@ -10,17 +10,17 @@ const settingsLink = (value: unknown) => `https://example.com/app/?settings=${en
 
 describe('parseImportLink', () => {
   it('识别任意域名的网页版导入链接', () => {
-    expect(parseImportLink('https://gpt-image-playground.cooksleep.dev?apiUrl=https://api.example.com/v1&apiKey=sk-1&model=gpt-image-2')?.get('apiKey')).toBe('sk-1')
+    expect(parseImportLink('https://weikendraw.cooksleep.dev?apiUrl=https://api.example.com/v1&apiKey=sk-1&model=gpt-image-2')?.get('apiKey')).toBe('sk-1')
     expect(parseImportLink('  http://my-host:8080/?apiUrl=http%3A%2F%2F10.0.0.1%2Fv1\n')).not.toBeNull()
     expect(parseImportLink(settingsLink({ profiles: [{ name: 'A', provider: 'openai', baseUrl: 'https://a.example.com' }] }))).not.toBeNull()
     expect(parseImportLink(settingsLink({ settings: { profiles: [{ name: 'A' }] } }))).not.toBeNull()
   })
 
   it('识别 deep link', () => {
-    expect(parseImportLink('gpt-image-playground://?apiUrl={address}&apiKey={key}&model={model}')?.get('model')).toBe('{model}')
-    expect(parseImportLink('gpt-image-playground://?apiKey=sk-1')).not.toBeNull()
-    expect(parseImportLink('gpt-image-playground://')).toBeNull()
-    expect(parseImportLink('gpt-image-playground://?foo=bar')).toBeNull()
+    expect(parseImportLink('weikendraw://?apiUrl={address}&apiKey={key}&model={model}')?.get('model')).toBe('{model}')
+    expect(parseImportLink('weikendraw://?apiKey=sk-1')).not.toBeNull()
+    expect(parseImportLink('weikendraw://')).toBeNull()
+    expect(parseImportLink('weikendraw://?foo=bar')).toBeNull()
   })
 
   it('普通网址和文本不视为导入链接', () => {
@@ -62,7 +62,7 @@ describe('describeImportLink', () => {
   const allText = (desc: ReturnType<typeof describeImportLink>) => JSON.stringify(desc)
 
   it('新增配置时列出内容，不显示 API Key 明文', () => {
-    const params = parseImportLink('gpt-image-playground://?apiUrl=https://api.example.com/v1&apiKey=sk-secret&model=gpt-image-2&profileName=我的配置')!
+    const params = parseImportLink('weikendraw://?apiUrl=https://api.example.com/v1&apiKey=sk-secret&model=gpt-image-2&profileName=我的配置')!
     const desc = describeImportLink(params, current())
     const title = '新增配置「我的配置」'
     expect(desc.summary).toBe('请只导入来源可信的链接。')
@@ -301,9 +301,9 @@ describe('getProfileImportBaseUrl', () => {
   })
 
   it('客户端未配置网页版地址时改用 deep link', () => {
-    expect(getProfileImportBaseUrl(true, 'http://tauri.localhost/', '')).toBe('gpt-image-playground://')
+    expect(getProfileImportBaseUrl(true, 'http://tauri.localhost/', '')).toBe('weikendraw://')
     const url = createCustomProfileImportUrl(getProfileImportBaseUrl(true, 'http://tauri.localhost/', ''), profile, undefined, options)
-    expect(url.startsWith('gpt-image-playground://?settings=')).toBe(true)
+    expect(url.startsWith('weikendraw://?settings=')).toBe(true)
     expect(parseImportLink(url)).not.toBeNull()
   })
 

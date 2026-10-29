@@ -1,7 +1,7 @@
 {
-  "name": "GPT Image Playground",
-  "short_name": "GPT Image",
-  "description": "GPT Image Playground 图像生成工作台",
+  "name": "威肯绘图",
+  "short_name": "威肯绘图",
+  "description": "威肯绘图 图像生成工作台",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
