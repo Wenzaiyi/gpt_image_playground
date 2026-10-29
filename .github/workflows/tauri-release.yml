@@ -94,6 +94,7 @@ jobs:
           prerelease: false
           includeUpdaterJson: true
           updaterJsonPreferNsis: true
+          assetNamePattern: 'WeikenDraw_[version]_[arch][setup][ext]'
           tauriScript: npx tauri
 
       # tauri-action 在 Release 已存在（例如维护者手动创建）时只上传文件，不改标题、正文和草稿状态。

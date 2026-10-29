@@ -38,3 +38,10 @@ npm run tauri:build
 - productName 改为 WeikenDraw，窗口标题保持“威肯绘图”，安装包文件名使用英文产品名。
 - 修复 Windows 发布工作流的 updater JSON 上传配置，确保生成 latest.json。
 - 版本号升级至 1.0.1。
+
+
+## 1.0.1 首页与发布修订
+
+- Windows productName 恢复为“威肯绘图”，发布工作流通过 `assetNamePattern` 生成 `WeikenDraw_[version]_[arch][setup][ext]` 英文资产名。
+- 首页默认收起高级参数，突出提示词、参考图和生成按钮；未配置 API Key 时提供设置与充值入口，Agent 顶部入口保留。
+- 批量提交设置默认关闭（`showBatchPrompt` 与 `batchPromptEnabled` 默认均为 `false`）。
