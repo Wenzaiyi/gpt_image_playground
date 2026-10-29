@@ -6,7 +6,7 @@ import { customProviderSupportsNativeTransparentBackground } from '../lib/custom
 import { hasActiveDataOperations, trackDataTransfer } from '../lib/dataOperations'
 import { useSettingsDataTransfer } from '../lib/dataProgress'
 import { isApiProxyAvailable, isApiProxyLocked, readClientDevProxyConfig } from '../lib/devProxy'
-import { isTauri } from '../lib/platform'
+import { apiFetch, isTauri } from '../lib/platform'
 import { useStore, exportData, importData, clearData, type SettingsTab } from '../store'
 import {
   createDefaultOpenAIProfile,
@@ -1573,9 +1573,14 @@ export default function SettingsModal() {
                         setFetchingModels(true)
                         try {
                           const url = `${activeProfile.baseUrl.replace(/\/$/, '')}/models`
-                          const response = await fetch(url, { headers: { Authorization: `Bearer ${activeProfile.apiKey.trim()}` } })
+                          const response = await apiFetch(url, { headers: { Authorization: `Bearer ${activeProfile.apiKey.trim()}` } })
                           const payload: unknown = await response.json().catch(() => null)
-                          if (!response.ok) throw new Error(`接口返回 ${response.status}`)
+                          if (!response.ok) {
+                            const detail = payload && typeof payload === 'object' && 'error' in payload
+                              ? String((payload as { error?: { message?: unknown } }).error && typeof (payload as { error?: { message?: unknown } }).error === 'object' ? (payload as { error: { message?: unknown } }).error.message ?? '' : (payload as { error?: unknown }).error ?? '')
+                              : ''
+                            throw new Error(`接口返回 ${response.status}${detail ? `：${detail}` : ''}`)
+                          }
                           const models = payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)
                             ? (payload as { data: Array<{ id?: unknown }> }).data.map((item) => typeof item.id === 'string' ? item.id.trim() : '').filter(Boolean)
                             : []
