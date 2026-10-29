@@ -12,7 +12,7 @@
 ## 还需要手动完成
 
 1. 运行 `npx tauri signer generate` 生成签名密钥。
-2. 在仓库 Secrets 配置 `TAURI_SIGNING_PRIVATE_KEY` 和 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，并把生成的公钥写入 `src-tauri/tauri.conf.json` 的 updater `pubkey`。
+2. 在仓库 Secrets 配置 `TAURI_SIGNING_PRIVATE_KEY` 和 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，公钥已配置到 `src-tauri/tauri.conf.json` 的 updater `pubkey`；仍需在仓库 Secrets 配置私钥和密码。
 3. 更新版本号后推送与 `package.json` 一致的 `v*` tag，触发 Windows 安装包、`.sig` 和 `latest.json` 发布。
 
 ## 本地打包

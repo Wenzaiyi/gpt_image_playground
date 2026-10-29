@@ -46,7 +46,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_TAURI_SIGNER_PUBLIC_KEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ0MDYwRTU3RTVGRTgyNUMKUldSY2d2N2xWdzRHMUc5VG1lUk9lZTdTaHk1M3RXdnZNRHBCRDFrMngvMGZpR0dISGs2V0Vvb0MK",
       "endpoints": ["https://github.com/Wenzaiyi/gpt_image_playground/releases/latest/download/latest.json"],
       "requireSignedVersion": true,
       "windows": {
