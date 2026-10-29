@@ -63,7 +63,7 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "resources": {
-      "../skills/gpt-image-playground/": "skills/weikendraw/"
+      "../skills/weikendraw/": "skills/weikendraw/"
     },
     "targets": ["nsis"],
     "icon": [

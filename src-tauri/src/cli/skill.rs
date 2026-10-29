@@ -1,7 +1,7 @@
 //! 设置“Skill”页的命令：把随安装包附带的 Skill 安装到 AI 工具读取 Skill 的目录。
-//! - 复制到 `~\.claude\skills\gpt-image-playground`（Claude Code）或 `~\.agents\skills\gpt-image-playground`
+//! - 复制到 `~\.claude\skills\weikendraw`（Claude Code）或 `~\.agents\skills\weikendraw`
 //!   （Codex 等；Cursor、VS Code、OpenCode 两处都读）。目标文件夹的 SKILL.md 不是本应用的时不覆盖、不删除。
-//! - 安装包中的 Skill 在资源目录下的 `skills\gpt-image-playground`；开发版没有打包资源，直接用仓库中的。
+//! - 安装包中的 Skill 在资源目录下的 `skills\weikendraw`；开发版没有打包资源，直接用仓库中的。
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
 /// Skill 的文件夹名
-const NAME: &str = "gpt-image-playground";
+const NAME: &str = "weikendraw";
 
 #[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

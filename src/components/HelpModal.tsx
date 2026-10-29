@@ -177,7 +177,7 @@ export default function HelpModal({ appMode, isFavoriteCollectionOverview = fals
               {isTauri ? (
                 <>
                   <li>在浏览器或其他地方<strong className="text-blue-500 dark:text-blue-400 font-medium">复制导入链接</strong>后切回客户端，客户端会提示导入，确认后才会导入。</li>
-                  <li>点击 <code className="rounded bg-gray-100 px-1 py-0.5 text-[0.85em] text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">gpt-image-playground://</code> 开头的链接可以直接唤起客户端并提示导入。</li>
+                  <li>点击 <code className="rounded bg-gray-100 px-1 py-0.5 text-[0.85em] text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">weikendraw://</code> 开头的链接可以直接唤起客户端并提示导入。</li>
                 </>
               ) : (
                 <li>打开带有配置参数的<strong className="text-blue-500 dark:text-blue-400 font-medium">导入链接</strong>时，页面会先提示导入，确认后才会导入。</li>

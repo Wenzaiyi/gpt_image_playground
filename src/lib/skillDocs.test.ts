@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import CUSTOM_PROVIDER from '../../skills/gpt-image-playground/references/custom-provider.md?raw'
+import CUSTOM_PROVIDER from '../../skills/weikendraw/references/custom-provider.md?raw'
 import PROMPT_DOC from '../../docs/custom-provider-llm-prompt.md?raw'
 import { CUSTOM_PROVIDER_EXAMPLES, CUSTOM_PROVIDER_LLM_PROMPT, CUSTOM_PROVIDER_MANIFEST_SPEC } from './settingsCustomProvider'
 
