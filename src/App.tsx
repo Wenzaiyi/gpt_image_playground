@@ -183,6 +183,7 @@ export default function App() {
       })
       .catch((error) => {
         console.warn('Failed to import preset config:', error)
+        useStore.getState().showToast('内置预设加载失败，请在设置中检查 API 配置。', 'error')
         setPresetConfig(null)
       })
       .finally(() => {

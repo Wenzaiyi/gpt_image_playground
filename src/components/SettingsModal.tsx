@@ -7,6 +7,7 @@ import { hasActiveDataOperations, trackDataTransfer } from '../lib/dataOperation
 import { useSettingsDataTransfer } from '../lib/dataProgress'
 import { isApiProxyAvailable, isApiProxyLocked, readClientDevProxyConfig } from '../lib/devProxy'
 import { apiFetch, isTauri } from '../lib/platform'
+import { filterImageModels } from '../lib/imageModelFilter'
 import { useStore, exportData, importData, clearData, type SettingsTab } from '../store'
 import {
   createDefaultOpenAIProfile,
@@ -1585,7 +1586,7 @@ export default function SettingsModal() {
                           const models = payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)
                             ? (payload as { data: Array<{ id?: unknown }> }).data.map((item) => typeof item.id === 'string' ? item.id.trim() : '').filter(Boolean)
                             : []
-                          const imageModels = models.filter((id) => /image|dall[-_]?e/i.test(id))
+                          const imageModels = filterImageModels(models)
                           if (!imageModels.length) throw new Error('接口没有返回可用的生图模型')
                           const current = activeProfile.model.split(',').map((item) => item.trim()).filter(Boolean)
                           const merged = [...new Set([...current, ...imageModels])]

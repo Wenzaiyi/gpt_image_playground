@@ -1,5 +1,5 @@
 ---
-name: gpt-image-playground
+name: weikendraw
 description: Generate and edit images with the user's 威肯绘图 app on this Windows PC through its `gpt-image-playground` CLI, and read or change everything in the app's settings (API profiles and keys, models, providers, custom providers, image parameters, batch prompts, proxy and other preferences). Use when the user asks to draw, generate, edit or restyle an image, e.g. "画一张……", "生成一张图", "把这张图改成……", "用 威肯绘图 出图", or to look up past results in its history; also when they want to add or switch an API profile, set an API key, change the model, size, quality or other parameters, or configure a custom image API provider in the app.
 ---
 

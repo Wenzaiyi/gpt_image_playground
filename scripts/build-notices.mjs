@@ -14,10 +14,10 @@ const THIN = '-'.repeat(80)
 const read = (path) => readFileSync(path, 'utf8').replace(/^﻿/, '').replace(/\r\n/g, '\n').trim()
 
 const parts = [
-  'GPT Image Playground 第三方许可清单 / Third-Party Notices',
+  '威肯绘图第三方许可清单 / Third-Party Notices',
   '',
-  'GPT Image Playground 以 MIT 协议发布。本文件列出 GPT Image Playground 使用的第三方组件及其许可原文，其中 Rust 依赖仅用于 Windows 客户端。',
-  'GPT Image Playground is released under the MIT License. This file lists the third-party components used by GPT Image Playground and their license texts. Rust dependencies apply to the Windows client only.',
+  '威肯绘图以 MIT 协议发布。本文件列出威肯绘图使用的第三方组件及其许可原文，其中 Rust 依赖仅用于 Windows 客户端。',
+  'WeikenDraw is released under the MIT License. This file lists the third-party components used by WeikenDraw and their license texts. Rust dependencies apply to the Windows client only.',
 ]
 
 const section = (title, body) => parts.push('', '', RULE, title, RULE, '', body)
