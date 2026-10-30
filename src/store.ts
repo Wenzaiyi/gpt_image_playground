@@ -584,6 +584,17 @@ export const useStore = create<AppState>()(
         const activeProfile = getActiveApiProfile(settings)
         const agentValidationError = getAgentProfileValidationError(settings)
 
+        if (agentValidationError?.message.includes('API 配置不完整') || (activeProfile.provider === 'openai' && !activeProfile.apiKey.trim())) {
+          state.setConfirmDialog({
+            title: '请先填写 API Key',
+            message: '请先在设置里填写 API Key，再使用 Agent。',
+            confirmText: '去设置',
+            cancelText: '取消',
+            action: () => useStore.getState().setShowSettings(true, 'api'),
+          })
+          return
+        }
+
         if (!agentValidationError) {
           const galleryInputDraft = saveGalleryInputDraft(state)
           set((state) => ({
@@ -4672,6 +4683,7 @@ async function recoverCustomTask(taskId: string) {
 export interface ExportOptions {
   exportConfig?: boolean
   exportTasks?: boolean
+  includeApiKeys?: boolean
 }
 
 /** 导出数据为 ZIP */
@@ -4735,7 +4747,7 @@ export async function exportData(options: ExportOptions = { exportConfig: true, 
         backupPart: plan.length > 1 ? { id: backupId, index: partNumber, total: plan.length } : undefined,
       })
       const suffix = plan.length > 1 ? `_${String(plan.length).padStart(2, '0')}parts_part${String(partNumber).padStart(2, '0')}` : ''
-      const fileName = `gpt-image-playground-backup_${formatExportFileTime(new Date(exportedAt))}${suffix}.zip`
+      const fileName = `weiken-draw-backup_${formatExportFileTime(new Date(exportedAt))}${suffix}.zip`
       throwIfAborted(signal)
       updateDataProgress(`保存文件${partLabel}`)
       const saveOpts: SaveOptions = { signal, onProgress: (written, total) => updateDataProgress(`保存文件${partLabel}`, written, total, 'byte') }

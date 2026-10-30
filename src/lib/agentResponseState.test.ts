@@ -63,6 +63,36 @@ function conversation(responseOutput: ResponsesOutputItem[]): AgentConversation 
 }
 
 describe('agent response persistence', () => {
+  it('redacts sensitive fields in persisted raw responses', () => {
+    const result = getPersistableRawResponsePayload('{"apiKey":"secret","token":"abc","message":"ok"}')
+    expect(result).toContain('[已打码]')
+    expect(result).not.toContain('secret')
+    expect(result).not.toContain('abc')
+  })
+  it('redacts bare key fields and bearer or sk tokens in JSON and plain text', () => {
+    expect(getPersistableRawResponsePayload('{"key":"sk-secret1234","message":"Bearer abc.def"}')).not.toContain('sk-secret1234')
+    expect(getPersistableRawResponsePayload('request failed: Bearer abc.def sk-secret1234')).toMatch(/已打码/)
+  })
+  it.each(['accessToken', 'secretKey', 'client_secret', 'apiKey', 'Authorization'])('redacts sensitive field %s', (field) => {
+    const result = getPersistableRawResponsePayload(JSON.stringify({ [field]: 'secret-value' }))
+    expect(result).not.toContain('secret-value')
+  })
+  it('redacts a bare key without affecting unrelated field names', () => {
+    const result = getPersistableRawResponsePayload('{"key":"secret-value","monkey":"keep","keyword":"keep2"}')
+    expect(result).not.toContain('secret-value')
+    expect(result).toContain('keep')
+    expect(result).toContain('keep2')
+  })
+  it('redacts Bearer and sk tokens in JSON values', () => {
+    const result = getPersistableRawResponsePayload('{"message":"Bearer abc.def and sk-123456789"}')
+    expect(result).not.toContain('abc.def')
+    expect(result).not.toContain('sk-123456789')
+  })
+  it('redacts Bearer and sk tokens in plain text errors', () => {
+    const result = getPersistableRawResponsePayload('HTTP 401: Bearer abc.def; sk-123456789')
+    expect(result).not.toContain('abc.def')
+    expect(result).not.toContain('sk-123456789')
+  })
   it('strips image payload fields without mutating live output', () => {
     const output = [
       { type: 'message', content: [{ type: 'output_text', text: '完成' }] },

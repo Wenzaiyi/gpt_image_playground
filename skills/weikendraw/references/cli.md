@@ -1,6 +1,6 @@
 # gpt-image-playground CLI 参考
 
-只有安装时勾选了“添加到 PATH”才能直接输入 `gpt-image-playground`（改了 PATH 后要重新打开终端），否则用完整路径，默认是 `%LOCALAPPDATA%\GPT Image Playground\bin\gpt-image-playground.exe`。
+只有安装时勾选了“添加到 PATH”才能直接输入 `gpt-image-playground`（改了 PATH 后要重新打开终端），否则用完整路径，默认是 `%LOCALAPPDATA%\威肯绘图\bin\gpt-image-playground.exe`。
 
 每条命令都交给正在运行的应用执行，应用需要保持打开。`-h` / `--help` 显示用法，`--version` 显示版本。
 

@@ -94,6 +94,7 @@ interface HintTooltipState {
 }
 
 export default function InputParamsPanel({
+  mode = 'all',
   params,
   setParams,
   activeProfile,
@@ -144,6 +145,7 @@ export default function InputParamsPanel({
   onBatchChange,
   onStopBatch,
 }: {
+  mode?: 'all' | 'basic' | 'advanced'
   params: TaskParams
   setParams: (patch: Partial<TaskParams>) => void
   activeProfile: ApiProfile
@@ -207,9 +209,10 @@ export default function InputParamsPanel({
   const batchSummary = batchProgress
     ? `${batchProgress.finished}/${batchProgress.total}`
     : batchEnabled ? `${batchPromptCount} 条` : undefined
+  const showBatchControl = mode !== 'advanced' && showBatch
 
   return (
-    <div className="flex flex-1 flex-wrap sm:flex-nowrap items-center gap-2 min-w-0 text-xs">
+    <div className={`param-mode-${mode} flex flex-1 flex-wrap sm:flex-nowrap items-center gap-2 min-w-0 text-xs`}>
       {/* 极小的收缩权重：先截断“更多”的摘要，放不下时才压缩模型 ID */}
       <div className="min-w-0 max-w-full sm:shrink-[0.01] max-sm:flex-auto">
         <Select
@@ -431,7 +434,7 @@ export default function InputParamsPanel({
               />
             </div>
       </ParamPopoverChip>
-      {showBatch && (
+      {showBatchControl && (
         <ParamPopoverChip label="批量" summary={batchSummary} active={batchEnabled || Boolean(batchProgress)} className="sm:shrink-0">
           <div className={ROW_CLASS}>
             <span className={ROW_LABEL_CLASS}>多提示词批量提交</span>

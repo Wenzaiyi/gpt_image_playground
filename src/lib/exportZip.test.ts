@@ -12,6 +12,16 @@ const estimateFromDataUrl = (image: StoredImage, thumbnail?: StoredImageThumbnai
 )
 
 describe('exportZip', () => {
+  it('redacts API keys by default and includes them only when explicitly requested', async () => {
+    const settings = { ...DEFAULT_SETTINGS, apiKey: 'root-secret', profiles: [{ ...DEFAULT_SETTINGS.profiles[0], apiKey: 'profile-secret' }] }
+    const base = { options: { exportConfig: true }, exportedAt: 1700000001000, settings, tasks: [], images: [], thumbnailsByImageId: new Map(), favoriteCollections: [], defaultFavoriteCollectionId: null, agentConversations: [] }
+    const safe = (await buildExportZip(base)).manifest.settings!
+    expect(safe.apiKey).toBe('')
+    expect(safe.profiles[0].apiKey).toBe('')
+    const full = (await buildExportZip({ ...base, options: { exportConfig: true, includeApiKeys: true } })).manifest.settings!
+    expect(full.apiKey).toBe('root-secret')
+    expect(full.profiles[0].apiKey).toBe('profile-secret')
+  })
   it('omits empty customProviders in backup settings and retains non-empty providers', async () => {
     const opts = {
       options: { exportConfig: true },

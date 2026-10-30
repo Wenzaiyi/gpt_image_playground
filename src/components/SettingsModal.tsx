@@ -7,6 +7,7 @@ import { hasActiveDataOperations, trackDataTransfer } from '../lib/dataOperation
 import { useSettingsDataTransfer } from '../lib/dataProgress'
 import { isApiProxyAvailable, isApiProxyLocked, readClientDevProxyConfig } from '../lib/devProxy'
 import { apiFetch, isTauri } from '../lib/platform'
+import { filterImageModels } from '../lib/imageModelFilter'
 import { useStore, exportData, importData, clearData, type SettingsTab } from '../store'
 import {
   createDefaultOpenAIProfile,
@@ -206,6 +207,7 @@ export default function SettingsModal() {
   const [duplicateProfileTooltipVisible, setDuplicateProfileTooltipVisible] = useState(false)
   const [activeTab, setActiveTab] = useState<SettingsTab>('api')
   const [exportConfig, setExportConfig] = useState(true)
+  const [includeApiKeys, setIncludeApiKeys] = useState(false)
   const [exportTasks, setExportTasks] = useState(true)
   const [importConfig, setImportConfig] = useState(true)
   const [importTasks, setImportTasks] = useState(true)
@@ -661,7 +663,7 @@ export default function SettingsModal() {
     }
     useSettingsDataTransfer.setState({ mode: 'export' })
     try {
-      await trackDataTransfer(() => exportData({ exportConfig, exportTasks }))
+      await trackDataTransfer(() => exportData({ exportConfig, exportTasks, includeApiKeys }))
     } finally {
       useSettingsDataTransfer.setState({ mode: null })
     }
@@ -1584,11 +1586,12 @@ export default function SettingsModal() {
                           const models = payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)
                             ? (payload as { data: Array<{ id?: unknown }> }).data.map((item) => typeof item.id === 'string' ? item.id.trim() : '').filter(Boolean)
                             : []
-                          if (!models.length) throw new Error('接口没有返回可用模型')
+                          const imageModels = filterImageModels(models)
+                          if (!imageModels.length) throw new Error('接口没有返回可用的生图模型')
                           const current = activeProfile.model.split(',').map((item) => item.trim()).filter(Boolean)
-                          const merged = [...new Set([...current, ...models])]
+                          const merged = [...new Set([...current, ...imageModels])]
                           updateActiveProfile({ model: merged.join(',') }, true)
-                          showToast(`已获取并合并 ${models.length} 个模型`, 'success')
+                          showToast(`已获取并保留 ${imageModels.length} 个生图模型`, 'success')
                         } catch (err) {
                           showToast(`获取模型失败：${err instanceof Error ? err.message : '请检查 API URL 和 Key'}`, 'error')
                         } finally {
@@ -1837,12 +1840,14 @@ export default function SettingsModal() {
                       onChange={setExportConfig}
                       label="包含配置"
                     />
+                    {exportConfig && <Checkbox checked={includeApiKeys} onChange={setIncludeApiKeys} label="包含 API Key" />}
                     <Checkbox
                       checked={exportTasks}
                       onChange={setExportTasks}
                       label="包含任务和图片"
                     />
                   </div>
+                  {exportConfig && includeApiKeys && <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 dark:bg-red-500/10 dark:text-red-300">警告：导出文件将包含明文 API Key，请仅保存到安全位置。</p>}
                   <button
                     onClick={handleExport}
                     disabled={(!exportConfig && !exportTasks) || isExportingData}

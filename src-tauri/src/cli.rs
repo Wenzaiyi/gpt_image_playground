@@ -108,7 +108,7 @@ async fn serve(app: AppHandle, conn: tokio::net::windows::named_pipe::NamedPipeS
 async fn call(app: &AppHandle, request: Value, progress: mpsc::UnboundedSender<String>) -> Value {
     let cli = app.state::<Cli>();
     if !cli.ready.load(Ordering::SeqCst) {
-        return json!({ "error": "GPT Image Playground 还没有加载完成，请稍后重试" });
+        return json!({ "error": "威肯绘图 还没有加载完成，请稍后重试" });
     }
     let id = cli.next_id.fetch_add(1, Ordering::SeqCst);
     let (tx, rx) = oneshot::channel();

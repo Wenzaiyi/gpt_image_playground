@@ -1,5 +1,5 @@
 ; 基于 tauri-cli 2.12.1 内置的 NSIS 模板，由 tauri.conf.json 的 bundle.windows.nsis.template 引用。
-; 改动处均以“GPT Image Playground：”注释标出，升级 Tauri CLI 时需对照新版内置模板同步。
+; 改动处均以“威肯绘图：”注释标出，升级 Tauri CLI 时需对照新版内置模板同步。
 Unicode true
 ManifestDPIAware true
 ; Add in `dpiAwareness` `PerMonitorV2` to manifest for Windows 10 1607+ (note this should not affect lower versions since they should be able to ignore this and pick up `dpiAware` `true` set by `ManifestDPIAware true`)
@@ -78,11 +78,11 @@ Var UpdateMode
 Var NoShortcutMode
 Var WixMode
 Var OldMainBinaryName
-; GPT Image Playground：“添加到 PATH”的选择（1 添加，0 不添加）及安装目录页上的复选框
+; 威肯绘图：“添加到 PATH”的选择（1 添加，0 不添加）及安装目录页上的复选框
 Var AddToPath
 Var AddToPathCheckbox
 
-; GPT Image Playground：结束正在运行的命令行程序，不询问。它只是等待主程序回复，主程序已由 CheckIfAppIsRunning 询问后结束，
+; 威肯绘图：结束正在运行的命令行程序，不询问。它只是等待主程序回复，主程序已由 CheckIfAppIsRunning 询问后结束，
 ; 这时还在运行的只有正在启动或读取输入的进程
 !macro KillCliProcesses
   !insertmacro RestartManager_ShutdownFile "$INSTDIR\bin\gpt-image-playground.exe" $0
@@ -399,7 +399,7 @@ FunctionEnd
 
 ; 5. Choose install directory page
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
-; GPT Image Playground：所选目录下已有不属于本应用的 data 文件夹（非空，且没有 data.db、download-dir.txt 和 webview）时阻止继续。
+; 威肯绘图：所选目录下已有不属于本应用的 data 文件夹（非空，且没有 data.db、download-dir.txt 和 webview）时阻止继续。
 ; 应用数据固定在 <安装目录>\data，误用用户自己的 data 文件夹会混入应用数据，卸载勾选删除数据时也会把它删掉。
 ; 本页另加“添加到 PATH”复选框
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW InstallDirPageShow
@@ -424,7 +424,7 @@ Function InstallDirPageShow
   ; 说明文字（1006）的区域原本一直延伸到分组框，收短到复选框上方，避免重叠时互相覆盖
   GetDlgItem $0 $1 1006
   System::Call "user32::SetWindowPos(p r0, p 0, i 0, i 0, i r6, i r5, i 0x16)"
-  System::Call 'user32::CreateWindowEx(i ${__NSD_CheckBox_EXSTYLE}, w "${__NSD_CheckBox_CLASS}", w "添加到 PATH（可在命令行中直接运行 gpt-image-playground）", i ${__NSD_CheckBox_STYLE}, i 0, i r5, i r6, i r7, p r1, i0, i0, i0) i .s'
+  System::Call 'user32::CreateWindowEx(i ${__NSD_CheckBox_EXSTYLE}, w "${__NSD_CheckBox_CLASS}", w "添加到 PATH（可在命令行中直接运行 gpt-image-playground 命令）", i ${__NSD_CheckBox_STYLE}, i 0, i r5, i r6, i r7, p r1, i0, i0, i0) i .s'
   Pop $AddToPathCheckbox
   SendMessage $HWNDPARENT ${WM_GETFONT} 0 0 $0
   SendMessage $AddToPathCheckbox ${WM_SETFONT} $0 1
@@ -454,7 +454,7 @@ Function InstallDirPageLeave
   FindClose $0
 FunctionEnd
 
-; GPT Image Playground：把 <安装目录>\bin 加入当前用户的 PATH（$AddToPath 为 1），或移除之前加入的条目（为 0）。
+; 威肯绘图：把 <安装目录>\bin 加入当前用户的 PATH（$AddToPath 为 1），或移除之前加入的条目（为 0）。
 ; 只改 HKCU\Environment 的 Path，保持原有类型（通常为 REG_EXPAND_SZ，不展开其中的 %变量%），
 ; 其他条目原样保留；条目与该目录逐条比较（不区分大小写），已有时不重复添加。
 ; NSIS 字符串最长 ${NSIS_MAX_STRLEN} 个字符，Path 再长读出来会被截断，这时不修改，避免写回残缺的 Path
@@ -544,7 +544,7 @@ FunctionEnd
 !insertmacro UpdateUserPathFunction ""
 !insertmacro UpdateUserPathFunction "un."
 
-; GPT Image Playground：默认保存地址页。
+; 威肯绘图：默认保存地址页。
 ; 客户端“文件保存位置”为“默认地址”时使用该目录，安装时写入 <安装目录>\data\download-dir.txt。
 ; 被动（/P，应用内更新使用）、更新（/UPDATE）和静默安装不显示；安装目录中已有数据或该文件、
 ; 或数据目录已在客户端中改到别处（存在 data-dir）时也不显示，不写入，保留用户之前的选择
@@ -769,7 +769,7 @@ Function .onInit
     !insertmacro MULTIUSER_INIT
   !endif
 
-  ; GPT Image Playground：“添加到 PATH”默认勾选；已安装过时沿用上次的选择，应用内更新与静默覆盖安装都保持不变
+  ; 威肯绘图：“添加到 PATH”默认勾选；已安装过时沿用上次的选择，应用内更新与静默覆盖安装都保持不变
   StrCpy $AddToPath 1
   ClearErrors
   ReadRegDWORD $0 SHCTX "${UNINSTKEY}" "AddToPath"
@@ -916,7 +916,7 @@ Section Install
     File /a "/oname={{this}}" "{{no-escape @key}}"
   {{/each}}
 
-  ; GPT Image Playground：上面装到安装目录的命令行程序 gpt-image-playground-cli.exe（Cargo.toml 中的 [[bin]]）
+  ; 威肯绘图：上面装到安装目录的命令行程序 gpt-image-playground-cli.exe（Cargo.toml 中的 [[bin]]）
   ; 移到 bin\gpt-image-playground.exe：与主程序同名，所以单独放在 bin 中，加入 PATH 的也是 bin
   CreateDirectory "$INSTDIR\bin"
   Delete "$INSTDIR\bin\gpt-image-playground.exe"
@@ -959,7 +959,7 @@ Section Install
   ; Save current MAINBINARYNAME for future updates
   WriteRegStr SHCTX "${UNINSTKEY}" "MainBinaryName" "${MAINBINARYNAME}.exe"
 
-  ; GPT Image Playground：不卸载直接装到别的目录时，先从 PATH 中移除旧安装目录的条目，再按本次的选择处理新目录
+  ; 威肯绘图：不卸载直接装到别的目录时，先从 PATH 中移除旧安装目录的条目，再按本次的选择处理新目录
   ReadRegStr $1 SHCTX "${UNINSTKEY}" "InstallLocation"
   StrCpy $2 $1 1
   ${If} $2 == '"'
@@ -986,7 +986,7 @@ Section Install
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
 
-  ; GPT Image Playground：按选择把 bin 加入 PATH，取消勾选时移除之前添加的条目；记下选择，以后更新时沿用
+  ; 威肯绘图：按选择把 bin 加入 PATH，取消勾选时移除之前添加的条目；记下选择，以后更新时沿用
   Call UpdateUserPath
   WriteRegDWORD SHCTX "${UNINSTKEY}" "AddToPath" $AddToPath
 
@@ -1013,7 +1013,7 @@ Section Install
     Call CreateOrUpdateDesktopShortcut
   ${EndIf}
 
-  ; GPT Image Playground：写入默认保存地址页选择的目录，一行绝对路径，UTF-8 无 BOM。
+  ; 威肯绘图：写入默认保存地址页选择的目录，一行绝对路径，UTF-8 无 BOM。
   ; NSIS 的 FileWrite 只能写系统 ANSI 编码，中文路径需先转为 UTF-8 再写入
   ${If} $DownloadDir != ""
     CreateDirectory "$INSTDIR\data"
@@ -1078,7 +1078,7 @@ Function un.onInit
   ${EndIf}
 FunctionEnd
 
-; GPT Image Playground：递归删除目录，遇到目录联接、符号链接只删除链接本身；RMDir /r 会进入目录联接删除目标中的文件
+; 威肯绘图：递归删除目录，遇到目录联接、符号链接只删除链接本身；RMDir /r 会进入目录联接删除目标中的文件
 Function un.RmDirSafe
   Exch $R0
   Push $R1
@@ -1145,7 +1145,7 @@ Section Uninstall
     Delete "$INSTDIR\\{{this}}"
   {{/each}}
 
-  ; GPT Image Playground：命令行程序
+  ; 威肯绘图：命令行程序
   Delete "$INSTDIR\bin\gpt-image-playground.exe"
   RMDir "$INSTDIR\bin"
 
@@ -1175,7 +1175,7 @@ Section Uninstall
 
   ; Remove shortcuts if not updating
   ${If} $UpdateMode <> 1
-    ; GPT Image Playground：从 PATH 中移除 bin；更新时保留，由新版安装程序按上次的选择处理
+    ; 威肯绘图：从 PATH 中移除 bin；更新时保留，由新版安装程序按上次的选择处理
     StrCpy $AddToPath 0
     Call un.UpdateUserPath
 
@@ -1237,7 +1237,7 @@ Section Uninstall
     DeleteRegKey /ifempty HKCU "${MANUKEY}"
 
     SetShellVarContext current
-    ; GPT Image Playground：应用数据都在数据目录中，只删除它；
+    ; 威肯绘图：应用数据都在数据目录中，只删除它；
     ; downloads 和另选的保存目录中是用户保存的图片与备份，任何情况下都不删除。
     ; 更改过数据目录时，<安装目录>\data-dir 的第一行是新位置，读法与 data_dir.rs 一致；省略盘符时补上
     ; 安装目录的盘符。该目录中可能还有别的东西，只在其中有 data.db 和 webview 时删除本应用的文件，

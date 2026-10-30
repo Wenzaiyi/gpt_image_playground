@@ -53,6 +53,11 @@ jobs:
             echo "::error::src-tauri/Cargo.toml 的版本 $cargo_version 与 package.json 的版本 $version 不一致"
             exit 1
           fi
+          lock_version=$(awk '/name = "gpt-image-playground"/{getline; print $3; exit}' src-tauri/Cargo.lock | tr -d '"')
+          if [[ "$lock_version" != "$version" ]]; then
+            echo "::error::src-tauri/Cargo.lock 的版本 $lock_version 与 package.json 的版本 $version 不一致"
+            exit 1
+          fi
           # Release 正文取 RELEASE.md 中对应版本的段落（含标题），与网页版、客户端的更新弹窗显示一致
           awk -v head="## v$version（" 'index($0, head) == 1 { found = 1; print; next } found && /^## v/ { exit } found { print }' RELEASE.md > release-notes.md
           if [[ ! -s release-notes.md ]]; then
