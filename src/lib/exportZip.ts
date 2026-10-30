@@ -15,6 +15,7 @@ const ZIP_ENTRY_OVERHEAD_BYTES = 1024
 export interface BuildExportZipOptions {
   exportConfig?: boolean
   exportTasks?: boolean
+  includeApiKeys?: boolean
 }
 
 /** 客户端直接从磁盘读出的原图，ext 须与网页版 dataUrlToBytes 推出的扩展名一致 */
@@ -62,9 +63,11 @@ export interface ExportZipPlanPart {
   includeBaseData: boolean
 }
 
-function getExportSettings(settings: AppSettings): NonNullable<ExportData['settings']> {
-  if (settings.customProviders.length) return settings
-  const { customProviders, ...rest } = settings
+function getExportSettings(settings: AppSettings, includeApiKeys = false): NonNullable<ExportData['settings']> {
+  const profiles = settings.profiles.map((profile) => includeApiKeys ? profile : { ...profile, apiKey: '' })
+  const sanitized = { ...settings, profiles, apiKey: includeApiKeys ? settings.apiKey : '' }
+  if (sanitized.customProviders.length) return sanitized
+  const { customProviders, ...rest } = sanitized
   return rest
 }
 
@@ -122,7 +125,7 @@ export async function buildExportZip(params: BuildExportZipParams) {
 
   if (params.backupPart) manifest.backupPart = params.backupPart
   if (params.options.exportConfig && params.includeManifestData !== false) {
-    manifest.settings = getExportSettings(params.settings)
+    manifest.settings = getExportSettings(params.settings, params.options.includeApiKeys)
   }
   if (params.options.exportTasks) {
     if (params.includeManifestData !== false || params.tasks.length) manifest.tasks = params.tasks
@@ -268,7 +271,7 @@ function getBaseManifestEstimatedBytes(params: Omit<BuildExportZipParams, 'image
   const manifest = {
     version: 3,
     exportedAt: new Date(params.exportedAt).toISOString(),
-    ...(params.options.exportConfig ? { settings: getExportSettings(params.settings) } : {}),
+    ...(params.options.exportConfig ? { settings: getExportSettings(params.settings, params.options.includeApiKeys) } : {}),
     ...(params.options.exportTasks ? {
       tasks: [],
       favoriteCollections: params.favoriteCollections,

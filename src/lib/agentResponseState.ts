@@ -57,13 +57,20 @@ export function stripPersistedAgentConversations(value: unknown): unknown {
 export function getPersistableRawResponsePayload(rawResponsePayload?: string) {
   if (!rawResponsePayload) return rawResponsePayload
   try {
-    const payload = JSON.parse(rawResponsePayload) as { output?: unknown }
-    if (!Array.isArray(payload.output)) return rawResponsePayload
+    const payload = redactSensitive(JSON.parse(rawResponsePayload)) as { output?: unknown }
+    if (!Array.isArray(payload.output)) return SENSITIVE_KEY.test(rawResponsePayload) ? JSON.stringify(payload, null, 2) : rawResponsePayload
     const output = normalizeResponsesOutputItems(payload.output).map(getPersistableResponseOutputItem)
     return JSON.stringify({ ...payload, output }, null, 2)
   } catch {
     return rawResponsePayload
   }
+}
+
+const SENSITIVE_KEY = /(authorization|api[_-]?key|token|secret|password|credential)/i
+function redactSensitive(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactSensitive)
+  if (!isRecord(value)) return value
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, SENSITIVE_KEY.test(key) ? '[已打码]' : redactSensitive(item)]))
 }
 
 function parseResponseOutputFromPayload(rawResponsePayload?: string): ResponsesOutputItem[] | null {

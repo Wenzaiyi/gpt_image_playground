@@ -1965,7 +1965,7 @@ export default function InputBar() {
             {/* 桌面端布局 */}
             <div className="hidden sm:flex items-center justify-between gap-3">
               <details open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)} className="min-w-0 flex-1">
-                <summary className="mb-2 cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">高级设置（模型、尺寸、数量及更多参数）</summary>
+                <summary className="mb-2 cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">高级设置（质量、背景、格式等）</summary>
                 {advancedOpen && renderParams()}
               </details>
 
@@ -2008,7 +2008,7 @@ export default function InputBar() {
               <div className={`collapse-section${mobileCollapsed ? ' collapsed' : ''}`}>
                 <div className="collapse-inner">
                   <details open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
-                    <summary className="mb-2 cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">高级设置（模型、尺寸、数量及更多参数）</summary>
+                    <summary className="mb-2 cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">高级设置（质量、背景、格式等）</summary>
                     {advancedOpen && renderParams()}
                   </details>
                   <div className="h-2" />

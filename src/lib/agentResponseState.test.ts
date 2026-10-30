@@ -63,6 +63,12 @@ function conversation(responseOutput: ResponsesOutputItem[]): AgentConversation 
 }
 
 describe('agent response persistence', () => {
+  it('redacts sensitive fields in persisted raw responses', () => {
+    const result = getPersistableRawResponsePayload('{"apiKey":"secret","token":"abc","message":"ok"}')
+    expect(result).toContain('[已打码]')
+    expect(result).not.toContain('secret')
+    expect(result).not.toContain('abc')
+  })
   it('strips image payload fields without mutating live output', () => {
     const output = [
       { type: 'message', content: [{ type: 'output_text', text: '完成' }] },

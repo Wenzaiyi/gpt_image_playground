@@ -27,7 +27,7 @@ const USAGE: &str = "用法：
   gpt-image-playground provider save <JSON> [--id <服务商 ID>] [--json]
   gpt-image-playground provider delete <服务商 ID> [--json]
 
-  用正在运行的 GPT Image Playground 生图、查看历史记录、查看和修改设置，效果与在应用里操作相同；应用需要保持打开。
+  用正在运行的 威肯绘图 生图、查看历史记录、查看和修改设置，效果与在应用里操作相同；应用需要保持打开。
   generate 用应用启用的 API 配置生图，提交后先输出任务 ID，全部任务结束后输出图片文件的路径；给出的参数会保存为应用的参数。
   多个 --prompt 按应用的批量提交方式一起提交。--image 为参考图：本机图片路径或历史记录中的图片 ID，可重复，最多 16 张。
   质量：auto、low、medium、high、xhigh、max。--output 把结果图片另外复制到该目录。history 给出任务 ID 时只列出这些任务。
@@ -270,9 +270,9 @@ async fn forward(tool: &str, args: &Map<String, Value>) -> Result<Value, String>
     let pipe = match super::pipe::open().await {
         Ok(pipe) => pipe,
         Err(err) if err.kind() == ErrorKind::NotFound => {
-            return Err("GPT Image Playground 没有运行，请先打开应用再重试".into());
+            return Err("威肯绘图 没有运行，请先打开应用再重试".into());
         }
-        Err(err) => return Err(format!("无法连接 GPT Image Playground：{err}")),
+        Err(err) => return Err(format!("无法连接 威肯绘图：{err}")),
     };
     let (read, mut write) = tokio::io::split(pipe);
     let mut request = json!({ "tool": tool, "arguments": args }).to_string().into_bytes();

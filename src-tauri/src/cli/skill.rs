@@ -62,7 +62,7 @@ fn bundled_skill(app: &AppHandle) -> Result<PathBuf, String> {
     }
     let res = app.path().resource_dir().map_err(|err| {
         log::warn!("无法取得资源目录：{err}");
-        "找不到 Skill 所在的目录，请重新安装 GPT Image Playground".to_string()
+        "找不到 Skill 所在的目录，请重新安装 威肯绘图".to_string()
     })?;
     Ok(res.join("skills").join(NAME))
 }
@@ -186,7 +186,7 @@ pub async fn skill_open_dir(app: AppHandle) -> Result<(), String> {
         .map_err(|err| format!("打开 Skill 文件夹时出错：{err}"))?
         .map_err(|err| {
             log::warn!("无法打开 Skill 文件夹：{err}");
-            "无法打开 Skill 所在的文件夹，请重新安装 GPT Image Playground".to_string()
+            "无法打开 Skill 所在的文件夹，请重新安装 威肯绘图".to_string()
         })
 }
 
