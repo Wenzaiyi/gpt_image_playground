@@ -58,15 +58,15 @@ export function getPersistableRawResponsePayload(rawResponsePayload?: string) {
   if (!rawResponsePayload) return rawResponsePayload
   try {
     const payload = redactSensitive(JSON.parse(rawResponsePayload)) as { output?: unknown }
-    if (!Array.isArray(payload.output)) return SENSITIVE_KEY.test(rawResponsePayload) || /Bearer\s+|\bsk-[A-Za-z0-9_-]{8,}\b/i.test(rawResponsePayload) ? JSON.stringify(redactSensitive(payload), null, 2) : rawResponsePayload
+    if (!Array.isArray(payload.output)) return SENSITIVE_KEY.test(rawResponsePayload) || /["'](?:key|apiKey|token|authorization)["']\s*:|Bearer\s+|\bsk-[A-Za-z0-9_-]{8,}\b/i.test(rawResponsePayload) ? JSON.stringify(redactSensitive(payload), null, 2) : rawResponsePayload
     const output = normalizeResponsesOutputItems(payload.output).map(getPersistableResponseOutputItem)
     return JSON.stringify({ ...payload, output }, null, 2)
   } catch {
-    return rawResponsePayload
+    return redactSensitiveText(rawResponsePayload)
   }
 }
 
-const SENSITIVE_KEY = /(authorization|api[_-]?key|token|secret|password|credential)/i
+const SENSITIVE_KEY = /(^|[_-])(authorization|api[_-]?key|key|token|secret|password|credential)$/i
 function redactSensitive(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactSensitive)
   if (typeof value === 'string') return value
@@ -74,6 +74,10 @@ function redactSensitive(value: unknown): unknown {
     .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[已打码]')
   if (!isRecord(value)) return value
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, SENSITIVE_KEY.test(key) ? '[已打码]' : redactSensitive(item)]))
+}
+
+function redactSensitiveText(value: string) {
+  return value.replace(/Bearer\s+[A-Za-z0-9._~+\-/]+=*/gi, 'Bearer [已打码]').replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[已打码]')
 }
 
 function parseResponseOutputFromPayload(rawResponsePayload?: string): ResponsesOutputItem[] | null {

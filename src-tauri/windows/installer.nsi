@@ -424,7 +424,7 @@ Function InstallDirPageShow
   ; 说明文字（1006）的区域原本一直延伸到分组框，收短到复选框上方，避免重叠时互相覆盖
   GetDlgItem $0 $1 1006
   System::Call "user32::SetWindowPos(p r0, p 0, i 0, i 0, i r6, i r5, i 0x16)"
-  System::Call 'user32::CreateWindowEx(i ${__NSD_CheckBox_EXSTYLE}, w "${__NSD_CheckBox_CLASS}", w "添加到 PATH（可在命令行中直接运行威肯绘图）", i ${__NSD_CheckBox_STYLE}, i 0, i r5, i r6, i r7, p r1, i0, i0, i0) i .s'
+  System::Call 'user32::CreateWindowEx(i ${__NSD_CheckBox_EXSTYLE}, w "${__NSD_CheckBox_CLASS}", w "添加到 PATH（可在命令行中直接运行 gpt-image-playground 命令）", i ${__NSD_CheckBox_STYLE}, i 0, i r5, i r6, i r7, p r1, i0, i0, i0) i .s'
   Pop $AddToPathCheckbox
   SendMessage $HWNDPARENT ${WM_GETFONT} 0 0 $0
   SendMessage $AddToPathCheckbox ${WM_SETFONT} $0 1

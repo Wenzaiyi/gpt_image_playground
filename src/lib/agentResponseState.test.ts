@@ -69,6 +69,10 @@ describe('agent response persistence', () => {
     expect(result).not.toContain('secret')
     expect(result).not.toContain('abc')
   })
+  it('redacts bare key fields and bearer or sk tokens in JSON and plain text', () => {
+    expect(getPersistableRawResponsePayload('{"key":"sk-secret1234","message":"Bearer abc.def"}')).not.toContain('sk-secret1234')
+    expect(getPersistableRawResponsePayload('request failed: Bearer abc.def sk-secret1234')).toMatch(/已打码/)
+  })
   it('strips image payload fields without mutating live output', () => {
     const output = [
       { type: 'message', content: [{ type: 'output_text', text: '完成' }] },

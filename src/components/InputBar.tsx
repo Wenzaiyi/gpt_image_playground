@@ -1683,8 +1683,9 @@ export default function InputBar() {
     )
   }
 
-  const renderParams = () => (
+  const renderParams = (mode: 'all' | 'basic' | 'advanced' = 'all') => (
     <InputParamsPanel
+      mode={mode}
       params={params}
       setParams={setParams}
       activeProfile={activeProfile}
@@ -1964,10 +1965,13 @@ export default function InputBar() {
           <div className="mt-3">
             {/* 桌面端布局 */}
             <div className="hidden sm:flex items-center justify-between gap-3">
-              <details open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)} className="min-w-0 flex-1">
-                <summary className="mb-2 cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">高级设置（质量、背景、格式等）</summary>
-                {advancedOpen && renderParams()}
-              </details>
+              <div className="min-w-0 flex-1">
+                {renderParams('basic')}
+                <details open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
+                  <summary className="mb-2 cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">高级设置（质量、背景、格式等）</summary>
+                  {advancedOpen && renderParams('advanced')}
+                </details>
+              </div>
 
               <div className="flex gap-2 flex-shrink-0">
                 {renderAddImageButton(false)}
@@ -2007,10 +2011,13 @@ export default function InputBar() {
             <div className="sm:hidden flex flex-col gap-2">
               <div className={`collapse-section${mobileCollapsed ? ' collapsed' : ''}`}>
                 <div className="collapse-inner">
-                  <details open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
-                    <summary className="mb-2 cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">高级设置（质量、背景、格式等）</summary>
-                    {advancedOpen && renderParams()}
-                  </details>
+                  <div>
+                    {renderParams('basic')}
+                    <details open={advancedOpen} onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}>
+                      <summary className="mb-2 cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">高级设置（质量、背景、格式等）</summary>
+                      {advancedOpen && renderParams('advanced')}
+                    </details>
+                  </div>
                   <div className="h-2" />
                 </div>
               </div>

@@ -525,3 +525,6 @@ input[type="number"] {
   isolation: isolate;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
 }
+/* 首页基础参数常驻显示，高级参数由 details 控制。 */
+.param-mode-basic > :nth-child(3), .param-mode-basic > :nth-child(5) { display: none; }
+.param-mode-advanced > :nth-child(1), .param-mode-advanced > :nth-child(2), .param-mode-advanced > :nth-child(4) { display: none; }
