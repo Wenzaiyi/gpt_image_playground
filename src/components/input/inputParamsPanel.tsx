@@ -209,6 +209,7 @@ export default function InputParamsPanel({
   const batchSummary = batchProgress
     ? `${batchProgress.finished}/${batchProgress.total}`
     : batchEnabled ? `${batchPromptCount} 条` : undefined
+  const showBatchControl = mode !== 'advanced' && showBatch
 
   return (
     <div className={`param-mode-${mode} flex flex-1 flex-wrap sm:flex-nowrap items-center gap-2 min-w-0 text-xs`}>
@@ -433,7 +434,7 @@ export default function InputParamsPanel({
               />
             </div>
       </ParamPopoverChip>
-      {showBatch && (
+      {showBatchControl && (
         <ParamPopoverChip label="批量" summary={batchSummary} active={batchEnabled || Boolean(batchProgress)} className="sm:shrink-0">
           <div className={ROW_CLASS}>
             <span className={ROW_LABEL_CLASS}>多提示词批量提交</span>

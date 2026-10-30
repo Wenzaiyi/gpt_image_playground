@@ -57,23 +57,27 @@ export function stripPersistedAgentConversations(value: unknown): unknown {
 export function getPersistableRawResponsePayload(rawResponsePayload?: string) {
   if (!rawResponsePayload) return rawResponsePayload
   try {
-    const payload = redactSensitive(JSON.parse(rawResponsePayload)) as { output?: unknown }
+    const payload = JSON.parse(rawResponsePayload) as { output?: unknown }
     if (!Array.isArray(payload.output)) return SENSITIVE_KEY.test(rawResponsePayload) || /["'](?:key|apiKey|token|authorization)["']\s*:|Bearer\s+|\bsk-[A-Za-z0-9_-]{8,}\b/i.test(rawResponsePayload) ? JSON.stringify(redactSensitive(payload), null, 2) : rawResponsePayload
     const output = normalizeResponsesOutputItems(payload.output).map(getPersistableResponseOutputItem)
-    return JSON.stringify({ ...payload, output }, null, 2)
+    return JSON.stringify(redactSensitive({ ...payload, output }), null, 2)
   } catch {
     return redactSensitiveText(rawResponsePayload)
   }
 }
 
-const SENSITIVE_KEY = /(^|[_-])(authorization|api[_-]?key|key|token|secret|password|credential)$/i
+const SENSITIVE_KEY = /(authorization|apikey|api_key|api-key|token|secret|password|credential)/i
+const BARE_KEY = /^key$/i
 function redactSensitive(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactSensitive)
   if (typeof value === 'string') return value
     .replace(/Bearer\s+[A-Za-z0-9._~+\-/]+=*/gi, 'Bearer [已打码]')
     .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, '[已打码]')
   if (!isRecord(value)) return value
-  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, SENSITIVE_KEY.test(key) ? '[已打码]' : redactSensitive(item)]))
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => {
+    const lowerKey = key.toLowerCase()
+    return [key, SENSITIVE_KEY.test(lowerKey) || BARE_KEY.test(lowerKey) ? '[已打码]' : redactSensitive(item)]
+  }))
 }
 
 function redactSensitiveText(value: string) {
