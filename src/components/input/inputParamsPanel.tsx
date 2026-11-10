@@ -313,7 +313,7 @@ export default function InputParamsPanel({
           className="bg-transparent text-xs focus:outline-none disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
         <ButtonTooltip visible={nLimitHint.visible} text={nLimitHintText} />
-        <ButtonTooltip visible={streamConcurrentByN && streamConcurrentHint.visible && !nLimitHint.visible} text="数量大于 1 时会将多图生成拆分为并发单图" />
+        <ButtonTooltip visible={streamConcurrentByN && streamConcurrentHint.visible && !nLimitHint.visible} text="数量大于 1 时会拆成单张请求，并按多图并发数排队" />
       </label>
       <ParamPopoverChip label="更多" summary={moreSummary} className="sm:min-w-[5rem]">
             <div className={ROW_CLASS}>

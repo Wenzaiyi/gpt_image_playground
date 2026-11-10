@@ -5,6 +5,7 @@ import {
   assertImageInputPayloadSize,
   assertMaskEditFileSize,
   appendStreamingFormatHint,
+  createApiStatusError,
   createRequestTimeoutError,
   maybeAppendStreamingHint,
   type CallApiOptions,
@@ -25,6 +26,7 @@ import {
   PROMPT_REWRITE_GUARD_PREFIX,
 } from './imageApiShared'
 import { getImageGenerationModel } from './imageModels'
+import { IMAGE_REQUEST_MAX_ATTEMPTS, normalizeImageRequestConcurrency, runImageRequestBatch } from './imageRequestBatch'
 import { apiFetch, FetchConnectError } from './platform'
 import { isEventStreamResponse, readJsonServerSentEvents } from './serverSentEvents'
 import { prependCodexCliSizePrompt } from './size'
@@ -454,32 +456,74 @@ export async function callOpenAICompatibleImageApi(opts: CallApiOptions, profile
 
 async function callImagesApi(opts: CallApiOptions, profile: ApiProfile): Promise<CallApiResult> {
   const n = opts.params.n > 0 ? opts.params.n : 1
-  if ((profile.codexCli || (profile.streamImages && n > 1)) && n > 1) {
-    return callImagesApiConcurrent(opts, profile, n)
-  }
-
+  // 上游常把单次 n 限制在 4 以内，且一条长连接容易被网关掐断。数量大于 1 时一律拆成单张请求。
+  if (n > 1) return callImagesApiConcurrent(opts, profile, n)
+  const attempts = opts.imageRequestAttempts ?? 1
+  if (attempts > 1) return callImagesApiWithAttempts(opts, profile, attempts)
   return callImagesApiSingle(opts, profile)
 }
 
+async function callImagesApiWithAttempts(opts: CallApiOptions, profile: ApiProfile, attempts: number): Promise<CallApiResult> {
+  const slots = await runImageRequestBatch({
+    count: 1,
+    concurrency: 1,
+    maxAttempts: attempts,
+    shouldStop: opts.shouldStopImageRequests,
+    run: () => callImagesApiSingle(opts, profile),
+    onSettled: (slot) => opts.onImageRequestSettled?.({
+      requestIndex: 0,
+      image: slot.value?.images[0],
+      error: slot.error,
+      actualParams: slot.value?.actualParams,
+      revisedPrompt: slot.value?.revisedPrompts?.[0],
+      rawImageUrl: slot.value?.rawImageUrls?.[0],
+    }),
+  })
+  return mergeConcurrentApiResults(slots.map((slot) => (
+    slot.value
+      ? { status: 'fulfilled' as const, value: slot.value }
+      : { status: 'rejected' as const, reason: new Error(slot.error ?? '生成失败') }
+  )))
+}
+
 async function callImagesApiConcurrent(opts: CallApiOptions, profile: ApiProfile, n: number): Promise<CallApiResult> {
-  const singleOpts = {
+  const singleOpts: CallApiOptions = {
     ...opts,
     params: {
       ...opts.params,
       n: 1,
       ...(profile.codexCli ? { quality: 'auto' as const } : {}),
     },
+    onImageRequestSettled: undefined,
+    shouldStopImageRequests: undefined,
+    imageRequestAttempts: undefined,
   }
-  const results = await Promise.allSettled(
-    Array.from({ length: n }).map((_, requestIndex) => callImagesApiSingle({
+  const slots = await runImageRequestBatch({
+    count: n,
+    concurrency: normalizeImageRequestConcurrency(opts.settings.imageRequestConcurrency),
+    maxAttempts: opts.imageRequestAttempts ?? IMAGE_REQUEST_MAX_ATTEMPTS,
+    shouldStop: opts.shouldStopImageRequests,
+    run: (requestIndex) => callImagesApiSingle({
       ...singleOpts,
       onPartialImage: opts.onPartialImage
         ? (partial) => opts.onPartialImage?.({ ...partial, requestIndex })
         : undefined,
-    }, profile)),
-  )
+    }, profile),
+    onSettled: (slot) => opts.onImageRequestSettled?.({
+      requestIndex: slot.requestIndex,
+      image: slot.value?.images[0],
+      error: slot.error,
+      actualParams: slot.value?.actualParams,
+      revisedPrompt: slot.value?.revisedPrompts?.[0],
+      rawImageUrl: slot.value?.rawImageUrls?.[0],
+    }),
+  })
 
-  return mergeConcurrentApiResults(results)
+  return mergeConcurrentApiResults(slots.map((slot) => (
+    slot.value
+      ? { status: 'fulfilled' as const, value: slot.value }
+      : { status: 'rejected' as const, reason: new Error(slot.error ?? '生成失败') }
+  )))
 }
 
 async function callImagesApiSingle(opts: CallApiOptions, profile: ApiProfile): Promise<CallApiResult> {
@@ -617,7 +661,7 @@ async function callImagesApiSingle(opts: CallApiOptions, profile: ApiProfile): P
 
     if (!response.ok) {
       const errorMessage = await getApiErrorMessage(response)
-      throw new Error(maybeAppendStreamingHint(errorMessage, response.status, profile.streamImages))
+      throw createApiStatusError(response.status, maybeAppendStreamingHint(errorMessage, response.status, profile.streamImages))
     }
 
     if (profile.streamImages && isEventStreamResponse(response)) {

@@ -180,6 +180,8 @@ export interface AppSettings {
   /** 并发模式下是否限制并发数（默认开启），关闭时全部同时提交 */
   batchPromptConcurrencyLimited: boolean
   batchPromptConcurrency: number
+  /** Images API 多图拆成单张请求时，同时进行的数量 */
+  imageRequestConcurrency: number
   referenceImageEditAction: ReferenceImageEditAction
   zipDownloadRoutes: ZipDownloadRoute[]
   /** 仅客户端：默认保存地址本身由 Rust 侧保存，不在设置中 */
@@ -293,6 +295,8 @@ export interface TaskRecord {
   maskImageId?: string | null
   /** 输出图片的 image store id 列表 */
   outputImages: string[]
+  /** 与 outputImages 一一对应的请求序号；缺省时按成功槽位顺序对齐 */
+  outputImageRequestIndexes?: number[]
   /** 并发多图中失败的输出槽位，requestIndex 为从 0 开始的请求序号 */
   outputErrors?: Array<{ requestIndex: number; error: string }>
   /** 流式生成的中间步骤图片 id 列表，仅失败时保留供排查/下载 */

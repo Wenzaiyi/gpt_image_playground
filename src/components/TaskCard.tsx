@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, type ReactNode } from 'react'
 import type { TaskRecord } from '../types'
-import { useStore, retryTask } from '../store'
+import { useStore, retryTask, cancelPendingImageRequests } from '../store'
+import { summarizeImageRequestProgress } from '../lib/imageRequestBatch'
 import { ensureImageThumbnailCached, subscribeImageThumbnail } from '../lib/imageCache'
 import { useNearViewport } from '../hooks/useNearViewport'
 import { formatImageRatio } from '../lib/size'
@@ -328,6 +329,9 @@ export default function TaskCard({
   const outputSuccessCount = task.outputImages?.length ?? 0
   const requestedOutputCount = Math.max(task.params.n, outputSuccessCount + outputErrorCount)
   const hasPartialOutputFailure = task.status === 'done' && outputErrorCount > 0
+  const imageProgress = task.params.n > 1 ? summarizeImageRequestProgress(task) : null
+  const showImageProgress = task.status === 'running' && Boolean(imageProgress && imageProgress.total > 1)
+  const canCancelPendingImages = showImageProgress && (imageProgress?.success ?? 0) + (imageProgress?.failed ?? 0) + (imageProgress?.cancelled ?? 0) < (imageProgress?.total ?? 0)
 
   const defaultModelForProvider = task.apiProvider === 'fal' ? DEFAULT_FAL_MODEL : DEFAULT_IMAGES_MODEL
   const showModel = task.apiModel && task.apiModel !== defaultModelForProvider
@@ -408,7 +412,17 @@ export default function TaskCard({
       <div className="flex h-40">
         {/* 左侧图片区域 */}
         <div className="w-40 min-w-[10rem] h-full bg-gray-100 dark:bg-black/20 relative flex items-center justify-center overflow-hidden flex-shrink-0">
-          {task.status === 'running' && streamPreviewSrc && (
+          {task.status === 'running' && thumbSrc && (
+            <>
+              <img src={thumbSrc} className="h-full w-full object-cover" alt="" />
+              {showImageProgress && (
+                <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
+                  {imageProgress?.text}
+                </span>
+              )}
+            </>
+          )}
+          {task.status === 'running' && !thumbSrc && streamPreviewSrc && (
             <>
               <img
                 src={streamPreviewSrc}
@@ -424,7 +438,7 @@ export default function TaskCard({
               )}
             </>
           )}
-          {task.status === 'running' && (!streamPreviewSrc || !streamPreviewLoaded) && (
+          {task.status === 'running' && !thumbSrc && (!streamPreviewSrc || !streamPreviewLoaded) && (
             <div className="flex flex-col items-center gap-2">
               <svg
                 className="w-8 h-8 text-blue-400 animate-spin"
@@ -445,7 +459,7 @@ export default function TaskCard({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                 />
               </svg>
-              <span className="text-xs text-gray-400 dark:text-gray-500">生成中...</span>
+              <span className="text-xs text-gray-400 dark:text-gray-500">{showImageProgress ? imageProgress?.text : '生成中...'}</span>
             </div>
           )}
           {task.status === 'error' && isFalReconnecting && (
@@ -644,6 +658,15 @@ export default function TaskCard({
               onTouchEnd={(e) => e.stopPropagation()}
               onTouchCancel={(e) => e.stopPropagation()}
             >
+              {canCancelPendingImages && (
+                <TaskActionButton
+                  tooltip="取消还没开始的图片"
+                  onClick={() => cancelPendingImageRequests(task.id)}
+                  className="px-1.5 py-1 rounded-md text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/[0.06] dark:hover:text-gray-200 transition"
+                >
+                  取消未开始
+                </TaskActionButton>
+              )}
               {((task.status === 'error' && !isFalReconnecting && !isCustomReconnecting) || (task.status === 'done' && settings.alwaysShowRetryButton)) && (
                 <TaskActionButton
                   tooltip="重试任务"

@@ -542,6 +542,47 @@ describe('task retry', () => {
     request.resolve({ images: [], actualParams: {}, actualParamsList: [], revisedPrompts: [] })
     await vi.waitFor(() => expect(useStore.getState().tasks[0].status).toBe('done'))
   })
+
+  it('asks before generating more than 4 images and keeps an image that finishes early', async () => {
+    vi.mocked(callImageApi).mockImplementation(async (opts) => {
+      if ((opts.params.n ?? 1) > 1) {
+        await opts.onImageRequestSettled?.({ requestIndex: 0, image: 'data:image/png;base64,YQ==' })
+        expect(useStore.getState().tasks.find((item) => item.status === 'running')?.outputImages).toHaveLength(1)
+        await opts.onImageRequestSettled?.({ requestIndex: 1, error: '等待超时，上游可能已生成，可重试。' })
+      }
+      return {
+        images: ['data:image/png;base64,YQ=='],
+        failedRequests: [{ requestIndex: 1, error: '等待超时，上游可能已生成，可重试。' }],
+        actualParams: { n: 1 },
+        actualParamsList: [{}],
+        revisedPrompts: [undefined],
+      }
+    })
+    useStore.setState({
+      prompt: 'a cat',
+      params: { ...DEFAULT_PARAMS, n: 6 },
+      confirmDialog: null,
+      tasks: [],
+      inputImages: [],
+      maskDraft: null,
+      batchProgress: null,
+      setConfirmDialog: (confirmDialog) => {
+        useStore.setState({ confirmDialog })
+      },
+    })
+
+    await submitTask()
+
+    expect(callImageApi).not.toHaveBeenCalled()
+    const dialog = useStore.getState().confirmDialog
+    expect(dialog?.title).toBe('确认生成数量')
+    expect(dialog?.message).toContain('6')
+    await dialog?.action?.(false)
+    await vi.waitFor(() => expect(useStore.getState().tasks[0]?.status).toBe('done'))
+    const task = useStore.getState().tasks[0]
+    expect(task.outputImages).toHaveLength(1)
+    expect(task.outputErrors).toEqual([{ requestIndex: 1, error: '等待超时，上游可能已生成，可重试。' }])
+  })
 })
 
 describe('mask draft lifecycle in store actions', () => {
