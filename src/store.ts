@@ -52,7 +52,8 @@ import { callAgentConversationTitleApi, callAgentResponsesApi, callBatchImageSin
 import { buildAgentApiInput, buildAgentContinuationInput } from './lib/agentInputBuilder'
 import { collectAgentRoundOutputImageSlots, extractAgentReferenceIds, getAgentCurrentReferenceId, getAgentGeneratedImageReferenceId } from './lib/agentImageReferences'
 import { showBrowserNotification } from './lib/browserNotification'
-import { IMAGE_FETCH_CORS_HINT, isHttpUrl } from './lib/imageApiShared'
+import { IMAGE_FETCH_CORS_HINT, isHttpUrl, type CallApiOptions } from './lib/imageApiShared'
+import { IMAGE_REQUEST_MAX_ATTEMPTS, LARGE_IMAGE_COUNT_CONFIRM_AT, largeImageCountConfirmMessage, projectImageOutputSlots, readImageOutputSlots, type ImageOutputSlot } from './lib/imageRequestBatch'
 import { getFalErrorMessage, getFalQueuedImageResult } from './lib/falAiImageApi'
 import { getCustomQueuedImageResult } from './lib/openaiCompatibleImageApi'
 import { validateMaskMatchesImage } from './lib/canvasImage'
@@ -1283,11 +1284,25 @@ function scheduleOpenAIWatchdog(taskId: string, timeoutSeconds: number, profile?
 function usesConcurrentImageRequests(settings: AppSettings, profile: ApiProfile, params: TaskParams, hasInputImages: boolean) {
   const n = params.n > 0 ? params.n : 1
   if (n <= 1) return false
-  if (profile.provider === 'openai') {
-    if (profile.apiMode === 'responses') return true
-    return profile.apiMode === 'images' && (profile.codexCli || profile.streamImages)
-  }
+  if (profile.provider === 'openai') return profile.apiMode === 'responses' || profile.apiMode === 'images'
   return profile.provider !== 'fal' && profile.codexCli && !isAsyncCustomProviderTask(settings, profile.provider, hasInputImages)
+}
+
+const pendingImageRequestStops = new Set<string>()
+
+/** 不再开始这个任务里还没发出的单张请求，已经发出的会继续，已完成的图片保留 */
+export function cancelPendingImageRequests(taskId: string) {
+  pendingImageRequestStops.add(taskId)
+}
+
+function confirmLargeImageCount(count: number, action: () => void) {
+  useStore.getState().setConfirmDialog({
+    title: '确认生成数量',
+    message: largeImageCountConfirmMessage(count),
+    confirmText: '开始生成',
+    cancelText: '取消',
+    action,
+  })
 }
 
 export function taskHasOutputErrors(task: Pick<TaskRecord, 'outputErrors'>) {
@@ -1816,7 +1831,7 @@ export interface SubmitInput {
 }
 
 /** 提交新任务，返回已开始的任务 id；批量提交时等全部任务结束后才返回 */
-export async function submitTask(options: { allowFullMask?: boolean; useCurrentApiProfileWhenReusedMissing?: boolean; input?: SubmitInput } = {}): Promise<string[]> {
+export async function submitTask(options: { allowFullMask?: boolean; useCurrentApiProfileWhenReusedMissing?: boolean; confirmLargeCount?: boolean; input?: SubmitInput } = {}): Promise<string[]> {
   const state = useStore.getState()
   const { settings, params, showToast, setConfirmDialog } = state
   const input = options.input
@@ -1889,7 +1904,7 @@ export async function submitTask(options: { allowFullMask?: boolean; useCurrentA
           confirmText: '继续提交',
           tone: 'warning',
           action: () => {
-            void submitTask({ allowFullMask: true })
+            void submitTask({ ...options, allowFullMask: true })
           },
         })
         endBatch(batchId)
@@ -1928,6 +1943,14 @@ export async function submitTask(options: { allowFullMask?: boolean; useCurrentA
   const normalizedParamPatch = getChangedParams(params, taskParams)
   if (Object.keys(normalizedParamPatch).length) {
     useStore.getState().setParams(normalizedParamPatch)
+  }
+
+  if (!options.input && !options.confirmLargeCount && taskParams.n > LARGE_IMAGE_COUNT_CONFIRM_AT) {
+    confirmLargeImageCount(taskParams.n, () => {
+      void submitTask({ ...options, confirmLargeCount: true })
+    })
+    endBatch(batchId)
+    return []
   }
 
   const taskIds: string[] = []
@@ -3826,7 +3849,48 @@ async function executeAgentRound(
   }
 }
 
+async function applyImageSettlement(
+  taskId: string,
+  execution: symbol,
+  task: TaskRecord,
+  requestPrompt: string,
+  codexCli: boolean,
+  slots: Array<ImageOutputSlot | undefined>,
+  event: Parameters<NonNullable<CallApiOptions['onImageRequestSettled']>>[0],
+) {
+  if (taskExecutions.get(taskId) !== execution) return
+  const latest = useStore.getState().tasks.find((item) => item.id === taskId)
+  if (!latest || latest.status !== 'running') return
+
+  if (event.image) {
+    const stored = await storeTaskOutputImages(task, [event.image])
+    if (taskExecutions.get(taskId) !== execution) {
+      await deleteUnreferencedImageIds([...stored.outputIds, ...(stored.transparentOriginalImageIds ?? [])])
+      return
+    }
+    const revisedPrompt = codexCli && task.sourceMode !== 'agent' && event.revisedPrompt
+      ? stripInjectedCodexCliSizePrompt(event.revisedPrompt, requestPrompt, task.params.size)
+      : event.revisedPrompt
+    const actualParamsList = await resolveImageSizeParamsList(stored.outputDataUrls, [event.actualParams], stored.outputImageSizes)
+    slots[event.requestIndex] = {
+      requestIndex: event.requestIndex,
+      imageId: stored.outputIds[0],
+      transparentOriginalId: stored.transparentOriginalImageIds?.[0],
+      actualParams: actualParamsList[0],
+      revisedPrompt,
+      rawImageUrl: event.rawImageUrl,
+    }
+  } else {
+    slots[event.requestIndex] = { requestIndex: event.requestIndex, error: event.error || '生成失败' }
+  }
+
+  const current = useStore.getState().tasks.find((item) => item.id === taskId)
+  if (taskExecutions.get(taskId) !== execution || !current || current.status !== 'running') return
+  updateTaskInStore(taskId, projectImageOutputSlots(slots))
+}
+
 async function executeTask(taskId: string) {
+  pendingImageRequestStops.delete(taskId)
   const { settings } = useStore.getState()
   const task = useStore.getState().tasks.find((t) => t.id === taskId)
   if (!task) return
@@ -3879,16 +3943,26 @@ async function executeTask(taskId: string) {
     const requestPrompt = task.transparentOutput && task.transparentPrompt
       ? task.transparentPrompt
       : task.prompt
+    const apiPrompt = replaceImageMentionsForApi(requestPrompt, inputDataUrls.length)
+    const imageSlots: Array<ImageOutputSlot | undefined> = []
+    let imageSlotChain = Promise.resolve()
+    const settleImageRequest: NonNullable<CallApiOptions['onImageRequestSettled']> = (event) => {
+      const run = imageSlotChain.then(() => applyImageSettlement(taskId, execution, task, requestPrompt, activeProfile.codexCli, imageSlots, event))
+      imageSlotChain = run.then(() => undefined, () => undefined)
+      return run
+    }
 
     const result = await callImageApi({
       settings: requestSettings,
-      prompt: replaceImageMentionsForApi(requestPrompt, inputDataUrls.length),
+      prompt: apiPrompt,
       params: task.params,
       nativeTransparentBackground: task.params.transparent_output && !task.transparentOutput,
       inputImageDataUrls: inputDataUrls,
       inputImageUrls: task.inputImageIds.map((id) => useStore.getState().imageSourceUrls[id] ?? null),
       maskDataUrl,
       skipCodexCliSizePrompt: task.sourceMode === 'agent',
+      shouldStopImageRequests: () => pendingImageRequestStops.has(taskId),
+      onImageRequestSettled: task.params.n > 1 ? settleImageRequest : undefined,
       onFalRequestEnqueued: (request) => {
         if (taskExecutions.get(taskId) !== execution) return
         falRequestInfo = request
@@ -4042,7 +4116,10 @@ async function executeTask(taskId: string) {
       showTaskFailureNotification(task)
     }
   } finally {
-    if (taskExecutions.get(taskId) === execution) taskExecutions.delete(taskId)
+    if (taskExecutions.get(taskId) === execution) {
+      pendingImageRequestStops.delete(taskId)
+      taskExecutions.delete(taskId)
+    }
     // 释放输入图片的内存缓存（已持久化到 IndexedDB，后续按需从 DB 加载）
     if (!taskExecutions.has(taskId)) {
       for (const imgId of task.inputImageIds) deleteCachedImage(imgId)
@@ -4151,7 +4228,7 @@ export async function deleteFavoriteCollection(collectionId: string, deleteTasks
 }
 
 /** 按重试方式新建任务或覆盖原任务；Agent 对话中的任务始终新建 */
-export async function retryTask(task: TaskRecord) {
+export async function retryTask(task: TaskRecord, options?: { confirmLargeCount?: boolean }) {
   const { settings, tasks } = useStore.getState()
   const source = tasks.find((item) => item.id === task.id)
   if (!source || source.status === 'running' || source.falRecoverable || source.customRecoverable) return
@@ -4164,6 +4241,12 @@ export async function retryTask(task: TaskRecord) {
   const transparentMeta = taskParams.transparent_output && activeProfile.transparentBackgroundMethod === 'local'
     ? createTransparentOutputMeta(source.prompt.trim())
     : null
+  if (!options?.confirmLargeCount && taskParams.n > LARGE_IMAGE_COUNT_CONFIRM_AT) {
+    confirmLargeImageCount(taskParams.n, () => {
+      void retryTask(source, { confirmLargeCount: true })
+    })
+    return
+  }
   const overwrite = !isAgentTask(source) && (
     settings.retryMode === 'overwriteAll' || (settings.retryMode === 'overwriteFailed' && source.status === 'error')
   )
@@ -4185,6 +4268,7 @@ export async function retryTask(task: TaskRecord) {
     transparentOutput: transparentMeta?.transparentOutput,
     transparentPrompt: transparentMeta?.effectivePrompt,
     outputImages: [],
+    outputImageRequestIndexes: undefined,
     outputErrors: undefined,
     transparentOriginalImages: undefined,
     actualParams: undefined,
@@ -4228,6 +4312,100 @@ export async function retryTask(task: TaskRecord) {
   }
 
   executeTask(taskId)
+}
+
+/** 只重试某一张失败或已取消的图片，已经成功的图片保留 */
+export async function retryFailedOutput(task: TaskRecord, requestIndex: number) {
+  const source = useStore.getState().tasks.find((item) => item.id === task.id)
+  if (!source || source.status === 'running' || source.falRecoverable || source.customRecoverable) return
+  if (!source.outputErrors?.some((item) => item.requestIndex === requestIndex)) return
+  const { settings } = useStore.getState()
+  const taskProfile = getTaskApiProfile(settings, source)
+  const activeProfile = taskProfile ?? getActiveApiProfile(settings)
+  const requestSettings = createSettingsForApiProfile(settings, activeProfile)
+  const execution = Symbol(source.id)
+  taskExecutions.set(source.id, execution)
+  const slots = readImageOutputSlots(source)
+  slots[requestIndex] = undefined
+  const startedAt = Date.now()
+  updateTaskInStore(source.id, {
+    ...projectImageOutputSlots(slots),
+    status: 'running',
+    error: null,
+    startedAt,
+    finishedAt: null,
+    elapsed: null,
+    falRecoverable: false,
+    customRecoverable: false,
+  })
+
+  try {
+    const inputDataUrls: string[] = []
+    for (const imgId of source.inputImageIds) {
+      const dataUrl = await ensureImageCached(imgId)
+      if (!dataUrl) throw new Error('输入图片已不存在')
+      inputDataUrls.push(dataUrl)
+    }
+    let maskDataUrl: string | undefined
+    if (source.maskImageId) {
+      maskDataUrl = await ensureImageCached(source.maskImageId)
+      if (!maskDataUrl) throw new Error('遮罩图片已不存在')
+    }
+    const requestPrompt = source.transparentOutput && source.transparentPrompt ? source.transparentPrompt : source.prompt
+    const result = await callImageApi({
+      settings: requestSettings,
+      prompt: replaceImageMentionsForApi(requestPrompt, inputDataUrls.length),
+      params: { ...source.params, n: 1 },
+      nativeTransparentBackground: source.params.transparent_output && !source.transparentOutput,
+      inputImageDataUrls: inputDataUrls,
+      inputImageUrls: source.inputImageIds.map((id) => useStore.getState().imageSourceUrls[id] ?? null),
+      maskDataUrl,
+      skipCodexCliSizePrompt: source.sourceMode === 'agent',
+      imageRequestAttempts: IMAGE_REQUEST_MAX_ATTEMPTS,
+    })
+    if (taskExecutions.get(source.id) !== execution) return
+    const latest = useStore.getState().tasks.find((item) => item.id === source.id)
+    if (!latest || latest.status !== 'running') return
+    const image = result.images[0]
+    if (!image) throw new Error('接口未返回图片数据')
+    const stored = await storeTaskOutputImages(source, [image])
+    if (taskExecutions.get(source.id) !== execution) {
+      await deleteUnreferencedImageIds([...stored.outputIds, ...(stored.transparentOriginalImageIds ?? [])])
+      return
+    }
+    const revisedPrompt = activeProfile.codexCli && source.sourceMode !== 'agent'
+      ? result.revisedPrompts?.[0] == null ? undefined : stripInjectedCodexCliSizePrompt(result.revisedPrompts[0], requestPrompt, source.params.size)
+      : result.revisedPrompts?.[0]
+    const actualParamsList = await resolveImageSizeParamsList(stored.outputDataUrls, [result.actualParamsList?.[0] ?? result.actualParams], stored.outputImageSizes)
+    slots[requestIndex] = {
+      requestIndex,
+      imageId: stored.outputIds[0],
+      transparentOriginalId: stored.transparentOriginalImageIds?.[0],
+      actualParams: actualParamsList[0],
+      revisedPrompt,
+      rawImageUrl: result.rawImageUrls?.[0],
+    }
+    const projected = projectImageOutputSlots(slots)
+    updateTaskInStore(source.id, {
+      ...projected,
+      actualParams: deriveGalleryActualParams(source.apiProvider ?? activeProfile.provider, false, result.actualParams, actualParamsList, projected.outputImages.length),
+      ...createTaskDonePatch({ createdAt: source.createdAt, startedAt }, Date.now()),
+    })
+  } catch (err) {
+    if (taskExecutions.get(source.id) !== execution) return
+    const latest = useStore.getState().tasks.find((item) => item.id === source.id)
+    if (!latest || latest.status !== 'running') return
+    const message = err instanceof Error ? err.message : String(err)
+    slots[requestIndex] = { requestIndex, error: message }
+    const projected = projectImageOutputSlots(slots)
+    const timing = { createdAt: source.createdAt, startedAt }
+    updateTaskInStore(source.id, {
+      ...projected,
+      ...(projected.outputImages.length > 0 ? createTaskDonePatch(timing, Date.now()) : createTaskErrorPatch(timing, message, Date.now())),
+    })
+  } finally {
+    if (taskExecutions.get(source.id) === execution) taskExecutions.delete(source.id)
+  }
 }
 
 /** 复用配置 */

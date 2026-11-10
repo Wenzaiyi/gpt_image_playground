@@ -25,6 +25,7 @@ import { readRuntimeEnv } from './runtimeEnv'
 import { isImportableConfigUrl } from './importableConfigUrl'
 import { DEFAULT_IMAGES_MODEL } from './imageModels'
 import { DEFAULT_BATCH_PROMPT_CONCURRENCY, normalizeBatchPromptConcurrency } from './batchPrompts'
+import { normalizeImageRequestConcurrency } from './imageRequestBatch'
 import { normalizeFontMode } from './fonts'
 import { DEFAULT_PRIVACY_MODE_SHORTCUT, normalizeShortcutSetting } from './keyboardShortcut'
 
@@ -754,6 +755,7 @@ export function normalizeSettings(input: Partial<AppSettings> | unknown): AppSet
     batchPromptMode: record.batchPromptMode === 'concurrent' ? 'concurrent' : 'queue',
     batchPromptConcurrencyLimited: typeof record.batchPromptConcurrencyLimited === 'boolean' ? record.batchPromptConcurrencyLimited : true,
     batchPromptConcurrency: normalizeBatchPromptConcurrency(record.batchPromptConcurrency),
+    imageRequestConcurrency: normalizeImageRequestConcurrency(record.imageRequestConcurrency),
     referenceImageEditAction: normalizeReferenceImageEditAction(record.referenceImageEditAction),
     zipDownloadRoutes: normalizeZipDownloadRoutes(record.zipDownloadRoutes),
     saveLocationMode: record.saveLocationMode === 'default' ? 'default' : 'ask',

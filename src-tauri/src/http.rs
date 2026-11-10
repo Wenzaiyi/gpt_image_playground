@@ -17,6 +17,7 @@ use crate::files::header;
 use crate::proxy::{Proxy, Route};
 
 const CANCELED: &str = "请求已取消";
+const UPSTREAM_WAIT: &str = "等待超时，上游可能已生成，可重试";
 const USER_AGENT: &str = concat!("gpt-image-playground/", env!("CARGO_PKG_VERSION"));
 
 struct Pending {
@@ -115,6 +116,27 @@ impl Detail {
     }
 }
 
+/// rustls 在对端未发送 close_notify 就断开时，错误文本里带有 “TLS”，但握手和证书本身是成功的
+fn is_mid_request_disconnect(lower: &str) -> bool {
+    lower.contains("close_notify")
+        || lower.contains("unexpected eof")
+        || lower.contains("unexpected_eof")
+        || lower.contains("connection closed before message completed")
+        || lower.contains("peer closed connection")
+}
+
+/// 只认证书校验和握手失败。单独出现 tls 字样（例如 close_notify 说明）不是握手失败
+fn is_tls_handshake_failure(lower: &str) -> bool {
+    if is_mid_request_disconnect(lower) {
+        return false;
+    }
+    lower.contains("certificate")
+        || lower.contains("handshake")
+        || lower.contains("unknownissuer")
+        || lower.contains("bad certificate")
+        || lower.contains("corrupt message")
+}
+
 /// proxied 为 true 表示这次请求经过自定义代理；跟随系统时不知道是否经过代理，只能从 reqwest 的隧道错误判断。
 /// 只有兜底原因附上最内层说明，前端也据此只对兜底原因追加“请求立即失败”的通用提示
 fn send_error(err: &reqwest::Error, proxied: bool) -> String {
@@ -122,15 +144,12 @@ fn send_error(err: &reqwest::Error, proxied: bool) -> String {
     log::warn!("请求失败：{}", detail.chain);
     let kind = detail.kind;
     let lower = detail.chain.to_lowercase();
-    let tls = ["certificate", "tls", "handshake", "corrupt message"]
-        .iter()
-        .any(|s| lower.contains(s));
     let reason = if lower.contains("proxy authorization required") {
         "代理服务器要求身份验证，请检查代理地址中的用户名和密码"
     } else if lower.contains("tunnel error: unsuccessful") {
         "代理服务器未能连接到目标地址"
     } else if lower.contains("tunnel error: failed to create underlying connection")
-        || (proxied && err.is_connect() && !tls)
+        || (proxied && err.is_connect() && !is_tls_handshake_failure(&lower))
     {
         "无法连接代理服务器，请检查代理地址和端口是否正确、代理软件是否已启动"
     } else if err.is_timeout() || kind == Some(ErrorKind::TimedOut) {
@@ -139,15 +158,25 @@ fn send_error(err: &reqwest::Error, proxied: bool) -> String {
         "无法解析域名，请检查 API 地址是否正确"
     } else if kind == Some(ErrorKind::ConnectionRefused) {
         "连接被拒绝，请检查 API 地址和端口是否正确、服务是否已启动"
+    } else if is_mid_request_disconnect(&lower)
+        || (matches!(
+            kind,
+            Some(
+                ErrorKind::ConnectionReset
+                    | ErrorKind::ConnectionAborted
+                    | ErrorKind::UnexpectedEof
+            )
+        ) && !err.is_connect())
+    {
+        // 请求已经发出后连接被掐断。连接阶段的重置仍走下面的文案，供前端区分“立刻失败”
+        UPSTREAM_WAIT
     } else if matches!(
         kind,
         Some(ErrorKind::ConnectionReset | ErrorKind::ConnectionAborted)
     ) {
-        // 此文案与下一条、兜底文案被 store.ts 的 getApiRequestNetworkErrorHint 按开头匹配，修改需同步
+        // 此文案与兜底文案被 store.ts 的 getApiRequestNetworkErrorHint 按开头匹配，修改需同步
         "连接被服务器重置"
-    } else if lower.contains("connection closed before message completed") {
-        "服务器未返回响应就关闭了连接"
-    } else if tls {
+    } else if is_tls_handshake_failure(&lower) {
         "TLS 握手失败，请检查服务器证书"
     } else if err.is_redirect() {
         "重定向次数过多"
@@ -306,7 +335,22 @@ pub async fn http_read(id: String, state: State<'_, Requests>) -> Result<Respons
             }
             Err(err) => {
                 map.remove(&id);
-                return Err(format!("读取响应时连接中断。{}", describe(&err).note(true)));
+                let detail = describe(&err);
+                log::warn!("读取响应失败：{}", detail.chain);
+                let lower = detail.chain.to_lowercase();
+                if is_mid_request_disconnect(&lower)
+                    || matches!(
+                        detail.kind,
+                        Some(
+                            ErrorKind::ConnectionReset
+                                | ErrorKind::ConnectionAborted
+                                | ErrorKind::UnexpectedEof
+                        )
+                    )
+                {
+                    return Err(format!("{UPSTREAM_WAIT}。{}", detail.note(false)));
+                }
+                return Err(format!("读取响应时连接中断。{}", detail.note(true)));
             }
         }
     }
@@ -430,6 +474,35 @@ mod tests {
             msg,
             format!("连接被拒绝，请检查 API 地址和端口是否正确、服务是否已启动。（错误码 {code}）")
         );
+    }
+
+    #[test]
+    fn close_notify_is_a_mid_request_timeout_not_a_certificate_failure() {
+        // rustls 在对端直接断开时的说明里包含 “TLS”，但不是证书或握手失败
+        let lower = "error sending request: peer closed connection without sending tls close_notify: https://docs.rs/rustls/latest/rustls/manual/_03_howto/index.html#unexpected-eof";
+        assert!(is_mid_request_disconnect(lower));
+        assert!(!is_tls_handshake_failure(lower));
+        assert!(!lower.contains("secret"));
+    }
+
+    #[test]
+    fn certificate_and_handshake_failures_stay_tls_errors() {
+        assert!(is_tls_handshake_failure(
+            "invalid peer certificate: unknownissuer"
+        ));
+        assert!(is_tls_handshake_failure(
+            "received fatal alert: handshakefailure"
+        ));
+        assert!(is_tls_handshake_failure("received corrupt message"));
+        assert!(!is_mid_request_disconnect(
+            "invalid peer certificate: unknownissuer"
+        ));
+        assert!(!is_tls_handshake_failure(
+            "connection closed before message completed"
+        ));
+        assert!(is_mid_request_disconnect(
+            "connection closed before message completed"
+        ));
     }
 
     #[tokio::test(flavor = "multi_thread")]

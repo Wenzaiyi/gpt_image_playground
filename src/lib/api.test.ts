@@ -747,7 +747,12 @@ describe('callImageApi', () => {
   it('keeps successful Images API concurrent results when one request fails', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
       const callIndex = fetchMock.mock.calls.length
-      if (callIndex === 2) throw new TypeError('Failed to fetch')
+      if (callIndex === 2) {
+        return new Response(JSON.stringify({ error: { message: 'content rejected' } }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
       return new Response(JSON.stringify({
         data: [{ b64_json: `aW1hZ2Ut${callIndex}` }],
       }), {
@@ -768,8 +773,67 @@ describe('callImageApi', () => {
       'data:image/png;base64,aW1hZ2Ut1',
       'data:image/png;base64,aW1hZ2Ut3',
     ])
-    expect(result.failedRequests).toEqual([{ requestIndex: 1, error: 'Failed to fetch' }])
+    expect(result.failedRequests).toEqual([{ requestIndex: 1, error: 'content rejected' }])
     expect(result.actualParams).toMatchObject({ n: 2 })
+  })
+
+  it('splits Images API counts above 1 into queued single-image requests', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String((init as RequestInit).body))
+      expect(body.n).toBeUndefined()
+      return new Response(JSON.stringify({
+        data: [{ b64_json: 'aW1hZ2U=' }],
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+    const settled: number[] = []
+
+    const result = await callImageApi({
+      settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key', imageRequestConcurrency: 1 },
+      prompt: 'prompt',
+      params: { ...DEFAULT_PARAMS, n: 5 },
+      inputImageDataUrls: [],
+      onImageRequestSettled: async (event) => {
+        settled.push(event.requestIndex)
+      },
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(5)
+    expect(result.images).toHaveLength(5)
+    expect(settled).toEqual([0, 1, 2, 3, 4])
+  })
+
+  it('retries a gateway timeout for one image and keeps the image that succeeded', async () => {
+    let calls = 0
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+      calls += 1
+      if (calls <= 2) {
+        return new Response('error code: 524', { status: 524, headers: { 'Content-Type': 'text/plain' } })
+      }
+      if (calls === 4) {
+        return new Response(JSON.stringify({ error: { message: 'n must be between 1 and 4' } }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      return new Response(JSON.stringify({ data: [{ b64_json: 'aW1hZ2U=' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+
+    const result = await callImageApi({
+      settings: { ...DEFAULT_SETTINGS, apiKey: 'test-key', imageRequestConcurrency: 1 },
+      prompt: 'prompt',
+      params: { ...DEFAULT_PARAMS, n: 2 },
+      inputImageDataUrls: [],
+    })
+
+    expect(calls).toBe(4)
+    expect(result.images).toEqual(['data:image/png;base64,aW1hZ2U='])
+    expect(result.failedRequests).toEqual([{ requestIndex: 1, error: 'n must be between 1 and 4' }])
   })
 
   it('streams Responses API partial images and resolves the completed response image', async () => {

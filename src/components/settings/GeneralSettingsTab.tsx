@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { normalizeImageRequestConcurrency } from '../../lib/imageRequestBatch'
 import type { AppSettings } from '../../types'
 import { markSaveLocationAsked } from '../../hooks/useSaveLocationPrompt'
 import { DEFAULT_PRIVACY_MODE_SHORTCUT } from '../../lib/keyboardShortcut'
@@ -28,6 +29,11 @@ export default function GeneralSettingsTab({
 }: GeneralSettingsTabProps) {
   const showToast = useStore((s) => s.showToast)
   const [defaultSaveDir, setDefaultSaveDir] = useState('')
+  const [imageConcurrencyInput, setImageConcurrencyInput] = useState(String(draft.imageRequestConcurrency))
+
+  useEffect(() => {
+    setImageConcurrencyInput(String(draft.imageRequestConcurrency))
+  }, [draft.imageRequestConcurrency])
 
   useEffect(() => {
     if (!isTauri) return
@@ -240,6 +246,27 @@ export default function GeneralSettingsTab({
             覆盖时保留原任务的创建时间和收藏，清空旧的结果和耗时后重新生成；重试 Agent 对话中的图片卡片时，始终新建任务。
           </div>
         </div>
+        <label className="block">
+          <span className="mb-1.5 block text-sm text-gray-600 dark:text-gray-300">多图并发数</span>
+          <input
+            value={imageConcurrencyInput}
+            onChange={(e) => setImageConcurrencyInput(e.target.value)}
+            onBlur={() => {
+              const imageRequestConcurrency = imageConcurrencyInput.trim() === ''
+                ? draft.imageRequestConcurrency
+                : normalizeImageRequestConcurrency(Number(imageConcurrencyInput))
+              setImageConcurrencyInput(String(imageRequestConcurrency))
+              commitSettings({ ...draft, imageRequestConcurrency })
+            }}
+            type="number"
+            min={1}
+            max={16}
+            className="w-full rounded-xl border border-transparent bg-black/[0.04] px-3 py-2.5 text-sm text-gray-700 outline-none transition focus:border-blue-300 dark:bg-white/[0.06] dark:text-gray-200 dark:focus:border-blue-500/50"
+          />
+          <div data-selectable-text className="mt-1.5 text-xs leading-relaxed text-gray-500 dark:text-gray-500">
+            一次生成多张图片时，每张单独请求。同时进行的数量不超过这里的设置，其余排队。默认 4。
+          </div>
+        </label>
         <div className="block">
           <div className="mb-1 flex items-center justify-between">
             <span className="block text-sm text-gray-600 dark:text-gray-300">允许模型改写优化提示词</span>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { useStore, reuseConfig, editOutputs, removeTask, showCodexCliPrompt, getCodexCliPromptKey, retryTask } from '../store'
+import { useStore, reuseConfig, editOutputs, removeTask, showCodexCliPrompt, getCodexCliPromptKey, retryTask, retryFailedOutput, cancelPendingImageRequests } from '../store'
+import { buildOutputSlots, summarizeImageRequestProgress } from '../lib/imageRequestBatch'
 import { useCloseOnEscape } from '../hooks/useCloseOnEscape'
 import { usePreventBackgroundScroll } from '../hooks/usePreventBackgroundScroll'
 import { useTooltip } from '../hooks/useTooltip'
@@ -154,30 +155,7 @@ export default function DetailModal() {
   const maskTargetSrc = maskTargetId ? imageSrcs[maskTargetId] || '' : ''
   const maskSrc = task?.maskImageId ? imageSrcs[task.maskImageId] || '' : ''
   const allInputImageIds = task?.inputImageIds ?? []
-  const outputSlots = useMemo(() => {
-    if (!task) return []
-    const outputErrors = task.outputErrors ?? []
-    if (outputErrors.length === 0) {
-      return task.outputImages.map((imageId, outputImageIndex) => ({
-        requestIndex: outputImageIndex,
-        outputImageIndex,
-        imageId,
-        error: '',
-      }))
-    }
-
-    const errorsByIndex = new Map(outputErrors.map((item) => [item.requestIndex, item.error]))
-    const requestedCount = Math.max(task.params.n, task.outputImages.length + outputErrors.length)
-    let outputImageIndex = 0
-    return Array.from({ length: requestedCount }, (_, requestIndex) => {
-      const error = errorsByIndex.get(requestIndex)
-      if (error) return { requestIndex, outputImageIndex: -1, imageId: '', error }
-      const imageId = task.outputImages[outputImageIndex] ?? ''
-      const slot = { requestIndex, outputImageIndex, imageId, error: '' }
-      outputImageIndex += 1
-      return slot
-    })
-  }, [task])
+  const outputSlots = useMemo(() => (task ? buildOutputSlots(task) : []), [task])
   const currentOutputSlot = outputSlots[imageIndex]
   const currentOutputImageId = currentOutputSlot?.imageId || ''
   const currentOutputImageIndex = currentOutputSlot?.outputImageIndex ?? -1
@@ -241,6 +219,7 @@ export default function DetailModal() {
   const showReferenceSection = allInputImageIds.length > 0 || isAgentEditTool
 
   const outputLen = outputSlots.length
+  const imageProgress = task.params.n > 1 ? summarizeImageRequestProgress(task) : null
   const currentImageRatio = currentOutputImageId ? imageRatios[currentOutputImageId] : ''
   const currentImageSize = currentOutputImageId ? imageSizes[currentOutputImageId] : ''
   const baseActualParams = currentOutputImageId
@@ -469,7 +448,7 @@ export default function DetailModal() {
 
         {/* 左侧：图片 */}
         <div className="md:w-1/2 w-full h-64 md:h-auto bg-gray-100 dark:bg-black/20 relative flex items-center justify-center flex-shrink-0 min-h-[16rem]">
-          {task.status === 'done' && outputLen > 0 && (currentOutputImageId || task.outputImages.length > 0) && (
+          {currentOutputImageId && (
             <div className="absolute right-3 top-[15px] z-20 flex items-center gap-1.5">
               {currentOutputImageId && (
                 <div className="relative group flex">
@@ -608,7 +587,7 @@ export default function DetailModal() {
               )}
             </>
           )}
-          {task.status === 'done' && outputLen > 0 && currentOutputError && (
+          {!currentOutputImageId && currentOutputError && (
             <div className="w-full max-w-md px-4 text-center">
               <svg className="w-10 h-10 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -624,6 +603,15 @@ export default function DetailModal() {
               >
                 {currentOutputError}
               </p>
+              {task.status !== 'running' && (
+                <button
+                  type="button"
+                  onClick={() => retryFailedOutput(task, currentOutputSlot.requestIndex)}
+                  className="mt-3 inline-flex items-center justify-center rounded-full border border-blue-200/80 bg-white/80 px-3 py-1.5 text-sm text-blue-500 transition hover:bg-blue-50 dark:border-blue-400/20 dark:bg-white/[0.04] dark:hover:bg-blue-500/10"
+                >
+                  重试这张
+                </button>
+              )}
               {outputLen > 1 && (
                 <>
                   <button
@@ -649,7 +637,7 @@ export default function DetailModal() {
               )}
             </div>
           )}
-          {(task.status === 'running' || isFalReconnecting) && (
+          {(task.status === 'running' || isFalReconnecting) && !currentOutputImageId && !currentOutputError && (
             <>
               <div className="absolute left-4 top-4 flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-0.5 rounded backdrop-blur-sm font-mono">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -720,7 +708,7 @@ export default function DetailModal() {
               <p className="text-sm font-medium text-yellow-500">重连中</p>
             </div>
           )}
-          {task.status === 'error' && !isFalReconnecting && (
+          {task.status === 'error' && !isFalReconnecting && !currentOutputImageId && !currentOutputError && (
             <div className="w-full max-w-md px-4 text-center">
               <svg className="w-10 h-10 text-red-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -842,6 +830,22 @@ export default function DetailModal() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+          {task.status === 'running' && imageProgress && (
+            <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
+              <span className="whitespace-nowrap rounded-full bg-black/60 px-2.5 py-1 text-xs text-white">
+                {imageProgress.text}
+              </span>
+              {imageProgress.success + imageProgress.failed + imageProgress.cancelled < imageProgress.total && (
+                <button
+                  type="button"
+                  onClick={() => cancelPendingImageRequests(task.id)}
+                  className="whitespace-nowrap rounded-full bg-black/60 px-2.5 py-1 text-xs text-white transition hover:bg-black/80"
+                >
+                  取消未开始
+                </button>
+              )}
             </div>
           )}
         </div>

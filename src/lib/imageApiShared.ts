@@ -1,5 +1,6 @@
 import type { AppSettings, ResponsesOutputItem, TaskParams } from '../types'
 import { blobToDataUrl } from './dataUrl'
+import { UPSTREAM_WAIT_TIMEOUT_MESSAGE, isUpstreamGatewayStatus } from './imageRequestBatch'
 import { apiFetch, isTauri } from './platform'
 
 export const MIME_MAP: Record<string, string> = {
@@ -26,6 +27,19 @@ export interface CallApiOptions {
   onFalRequestEnqueued?: (request: { requestId: string; endpoint: string }) => void
   onCustomTaskEnqueued?: (task: { taskId: string }) => void
   onPartialImage?: (partial: { image: string; partialImageIndex?: number; requestIndex?: number }) => void
+  /** 单张请求结束（成功、失败或未开始即取消）时回调，便于先保存已完成的图片 */
+  onImageRequestSettled?: (event: {
+    requestIndex: number
+    image?: string
+    error?: string
+    actualParams?: Partial<TaskParams>
+    revisedPrompt?: string
+    rawImageUrl?: string
+  }) => void | Promise<void>
+  /** 为 true 时不再开始排队中的单张请求，已经发出的请求会继续 */
+  shouldStopImageRequests?: () => boolean
+  /** 单张请求的总尝试次数，含首次。缺省时多图为 3，单图为 1 */
+  imageRequestAttempts?: number
 }
 
 export interface CallApiResult {
@@ -202,7 +216,18 @@ export async function fetchImageUrlAsDataUrl(url: string, fallbackMime: string, 
   return blobToDataUrl(blob, fallbackMime)
 }
 
+export function createApiStatusError(status: number, message: string) {
+  const err = new Error(message) as Error & { status: number }
+  err.status = status
+  return err
+}
+
 export async function getApiErrorMessage(response: Response): Promise<string> {
+  // Cloudflare 524 和网关 502/504 的正文往往只是 “error code: 524”，不是接口自己的业务错误
+  if (isUpstreamGatewayStatus(response.status)) {
+    void response.body?.cancel().catch(() => undefined)
+    return UPSTREAM_WAIT_TIMEOUT_MESSAGE
+  }
   let errorMsg = `HTTP ${response.status}`
   const textResponse = response.clone()
   try {
