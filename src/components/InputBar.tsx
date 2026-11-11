@@ -5,6 +5,7 @@ import { DEFAULT_PARAMS, MAX_INPUT_IMAGES, type TaskRecord } from '../types'
 import { getActiveAgentRounds } from '../lib/agentConversationState'
 import { getActiveApiProfile, getAgentImageApiProfile, normalizeSettings, resolveApiProfileModel, splitModelList } from '../lib/apiProfiles'
 import { getImageGenerationModel, isGptImage25Model } from '../lib/imageModels'
+import { customerImagePriceForModel } from '../lib/modelPriceDisplay'
 import { ensureImageCached, getCachedImage } from '../lib/imageCache'
 import { splitBatchPrompts } from '../lib/batchPrompts'
 import { DEFAULT_FAL_IMAGE_SIZE, getChangedParams, getOutputImageLimitForSettings, normalizeParamsForSettings } from '../lib/paramCompatibility'
@@ -449,8 +450,16 @@ export default function InputBar() {
   const isTemporarilyReusedProfile = activeProfile.id !== currentActiveProfile.id
   const modelOptions = useMemo(() => (
     splitModelList(settings.profiles.find((profile) => profile.id === activeProfile.id)?.model ?? activeProfile.model)
-      .map((model) => ({ label: model, value: model }))
-  ), [activeProfile.id, activeProfile.model, settings.profiles])
+      .map((model) => {
+        const price = customerImagePriceForModel(activeProfile.baseUrl, model)
+        return {
+          label: model,
+          value: model,
+          badge: price?.multiplierLabel,
+          description: price?.hint,
+        }
+      })
+  ), [activeProfile.baseUrl, activeProfile.id, activeProfile.model, settings.profiles])
   const handleModelChange = useCallback((model: string) => {
     // 临时复用其他配置时只切换本次复用的模型，不改动该配置记住的选择
     if (isTemporarilyReusedProfile) {

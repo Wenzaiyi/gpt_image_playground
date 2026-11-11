@@ -12,11 +12,19 @@ interface Option {
   style?: CSSProperties
   variant?: 'action' | 'danger'
   draggable?: boolean
+  /** 顾客侧倍率，例如 1× */
+  badge?: string
+  /** 倍率下方的补充说明 */
+  description?: string
   actions?: Array<{
     label: string
     variant?: 'danger'
     onClick: () => void
   }>
+}
+
+function optionTooltip(option: Option) {
+  return [option.label, option.badge, option.description].filter(Boolean).join('\n')
 }
 
 interface SelectProps {
@@ -202,7 +210,7 @@ export default function Select({ value, onChange, onReorder, options, disabled, 
         <ChevronDownIcon className={`w-3.5 h-3.5 flex-shrink-0 text-gray-400 dark:text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
         {showValueTooltips && (
           <ViewportTooltip visible={triggerTooltip.visible} className="max-w-[300px] break-words whitespace-pre-wrap">
-            {selectedOption?.label ?? value}
+            {selectedOption ? optionTooltip(selectedOption) : value}
           </ViewportTooltip>
         )}
       </div>
@@ -428,7 +436,7 @@ export default function Select({ value, onChange, onReorder, options, disabled, 
               )}
               {showValueTooltips && hoveredOptionTooltip === option.value && (
                 <ViewportTooltip visible={true} className="max-w-[300px] break-words whitespace-pre-wrap">
-                  {option.label}
+                  {optionTooltip(option)}
                 </ViewportTooltip>
               )}
               <div className="flex min-w-0 flex-1 items-center gap-2 pr-2">
@@ -442,7 +450,17 @@ export default function Select({ value, onChange, onReorder, options, disabled, 
                     <DragHandleIcon className="h-3.5 w-3.5" />
                   </div>
                 )}
-                <span className="min-w-0 truncate" style={option.style}>{option.label}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 truncate" style={option.style}>{option.label}</span>
+                    {option.badge ? (
+                      <span className="shrink-0 text-[11px] font-medium tabular-nums text-gray-400 dark:text-gray-500">{option.badge}</span>
+                    ) : null}
+                  </span>
+                  {option.description ? (
+                    <span className="mt-0.5 block text-[11px] font-normal leading-4 text-gray-400 dark:text-gray-500">{option.description}</span>
+                  ) : null}
+                </span>
               </div>
               {option.actions?.length ? (
                 <span className="ml-auto flex shrink-0 items-center gap-1">

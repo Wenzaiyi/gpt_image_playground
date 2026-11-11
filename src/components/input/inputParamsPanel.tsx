@@ -149,7 +149,7 @@ export default function InputParamsPanel({
   params: TaskParams
   setParams: (patch: Partial<TaskParams>) => void
   activeProfile: ApiProfile
-  modelOptions: Array<{ label: string; value: string }>
+  modelOptions: Array<{ label: string; value: string; badge?: string; description?: string }>
   onModelChange: (model: string) => void
   isFalProvider: boolean
   isFalTextToImage: boolean
@@ -206,15 +206,16 @@ export default function InputParamsPanel({
   ].filter(Boolean).join(' · ')
   const prefix = (text: string) => <span className="mr-1.5 text-gray-400 dark:text-gray-500">{text}</span>
 
+  const selectedModelOption = modelOptions.find((option) => option.value === activeProfile.model)
   const batchSummary = batchProgress
     ? `${batchProgress.finished}/${batchProgress.total}`
     : batchEnabled ? `${batchPromptCount} 条` : undefined
   const showBatchControl = mode !== 'advanced' && showBatch
 
   return (
-    <div className={`param-mode-${mode} flex flex-1 flex-wrap sm:flex-nowrap items-center gap-2 min-w-0 text-xs`}>
+    <div className={`param-mode-${mode} flex flex-1 flex-wrap sm:flex-nowrap items-start gap-2 min-w-0 text-xs`}>
       {/* 极小的收缩权重：先截断“更多”的摘要，放不下时才压缩模型 ID */}
-      <div className="min-w-0 max-w-full sm:shrink-[0.01] max-sm:flex-auto">
+      <div className="flex min-w-0 max-w-full flex-col sm:shrink-[0.01] max-sm:flex-auto">
         <Select
           value={activeProfile.model}
           onChange={(val) => onModelChange(String(val))}
@@ -223,6 +224,12 @@ export default function InputParamsPanel({
           menuClassName="min-w-max"
           className={CHIP_CLASS}
         />
+        {selectedModelOption?.description ? (
+          <p className="mt-1 px-1 text-[11px] leading-4 text-gray-400 dark:text-gray-500">
+            <span className="block tabular-nums">{selectedModelOption.badge}</span>
+            <span className="block">{selectedModelOption.description}</span>
+          </p>
+        ) : null}
       </div>
       <div
         className="relative max-sm:flex-auto sm:shrink-0"
