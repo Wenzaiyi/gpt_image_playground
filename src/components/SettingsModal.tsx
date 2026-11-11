@@ -28,8 +28,10 @@ import {
   normalizeAgentMaxToolRounds,
   normalizeSettings,
   normalizeStreamPartialImages,
+  splitModelList,
   switchApiProfileProvider,
 } from '../lib/apiProfiles'
+import { customerImagePriceSummary } from '../lib/modelPriceDisplay'
 import {
   getDefaultPresetProfileId,
   getPresetProfileDescription,
@@ -246,6 +248,7 @@ export default function SettingsModal() {
   const profileMenuDisabled = presetConfigOnly && visibleProfiles.length <= 1
   const defaultProfileId = getDefaultPresetProfileId() ?? getDefaultApiProfileId(draft)
   const activeProfile = draft.profiles.find((profile) => profile.id === draft.activeProfileId) ?? draft.profiles[0] ?? getActiveApiProfile(draft)
+  const modelPriceHint = customerImagePriceSummary(activeProfile.baseUrl, splitModelList(activeProfile.model))
   const activePresetDescription = getPresetProfileDescription(activeProfile.id)
   const activeProfileLocked = isPresetProfileLocked(activeProfile.id)
   const activeProviderIsOpenAICompatible = isOpenAICompatibleProvider(draft, activeProfile.provider)
@@ -1631,6 +1634,7 @@ export default function SettingsModal() {
                   {activeProfile.provider === 'openai' && (
                     <>支持通过链接参数导入：<code className="rounded bg-gray-100 px-1 py-0.5 dark:bg-white/[0.06]">?model=</code>。</>
                   )}
+                  {modelPriceHint ? <div className="mt-1 text-gray-400 dark:text-gray-500">{modelPriceHint}</div> : null}
                 </div>
               </label>
 
